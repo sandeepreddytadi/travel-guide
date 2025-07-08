@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incredible India - Interactive Tourism Map</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(15px);
+            position: relative;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.9;
+            color: #ecf0f1;
+        }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 80vh;
+            border: 3px solid #ff6b35;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px auto;
+            max-width: 95%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff6b35;
+            color: #ff6b35;
+            padding: 12px 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            backdrop-filter: blur(10px);
+            font-weight: 600;
+            font-size: 14px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .control-btn:hover {
+            background: #ff6b35;
+            color: white;
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+        }
+
+        .control-btn.active {
+            background: #ff6b35;
+            color: white;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
+        }
+
+        .sidebar {
+            position: fixed;
+            right: -450px;
+            top: 0;
+            width: 450px;
+            height: 100vh;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(44, 62, 80, 0.95));
+            backdrop-filter: blur(20px);
+            padding: 30px;
+            transition: right 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 2000;
+            overflow-y: auto;
+            border-left: 4px solid #ff6b35;
+        }
+
+        .sidebar.active {
+            right: 0;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+
+        .close-btn:hover {
+            transform: rotate(90deg) scale(1.1);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+        }
+
+        .place-info {
+            margin-top: 60px;
+        }
+
+        .place-info h2 {
+            color: #ff6b35;
+            font-size: 2.2em;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .place-info .coordinates {
+            background: rgba(255, 107, 53, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ff6b35;
+        }
+        
+        .place-info .directions-btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .place-info .directions-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+        }
+
+
+        .place-info h3 {
+            color: #3498db;
+            font-size: 1.4em;
+            margin: 20px 0 10px 0;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+
+        .place-info p {
+            line-height: 1.7;
+            margin-bottom: 15px;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .place-info ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .place-info li {
+            background: rgba(255, 255, 255, 0.1);
+            margin: 10px 0;
+            padding: 12px 18px;
+            border-radius: 10px;
+            border-left: 4px solid #ff6b35;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .place-info li:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(10px);
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .search-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            width: 300px; /* Ensure enough width for suggestions */
+        }
+        
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-box {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff6b35;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            width: 100%;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.5);
+        }
+
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .autocomplete-suggestions {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #ff6b35;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            position: absolute;
+            width: 100%;
+            z-index: 1001;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            margin-top: 5px;
+        }
+
+        .autocomplete-suggestions div {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: #ecf0f1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .autocomplete-suggestions div:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-suggestions div:hover, .autocomplete-suggestions .active {
+            background-color: #ff6b35;
+            color: white;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 2px solid #ff6b35;
+            z-index: 1000;
+        }
+
+        .legend h4 {
+            color: #ff6b35;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+
+        .legend-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .temple { background: linear-gradient(45deg, #e74c3c, #c0392b); }
+        .waterfall { background: linear-gradient(45deg, #3498db, #2980b9); }
+        .monument { background: linear-gradient(45deg, #f39c12, #e67e22); }
+        .beach { background: linear-gradient(45deg, #1abc9c, #16a085); }
+        .hill-station { background: linear-gradient(45deg, #9b59b6, #8e44ad); }
+        .wildlife { background: linear-gradient(45deg, #27ae60, #229954); }
+
+        .custom-popup {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .custom-popup h3 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 1.3em;
+        }
+
+        .custom-popup p {
+            color: #7f8c8d;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .custom-popup .popup-btn {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .custom-popup .popup-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 3000;
+            display: none;
+        }
+        
+        .filter-controls {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            border: 2px solid #ff6b35;
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: none;
+            color: #ecf0f1;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: #ff6b35;
+            color: white;
+            box-shadow: 0 2px 10px rgba(255, 107, 53, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                right: -100%;
+            }
+            
+            .search-container {
+                width: calc(100% - 40px);
+            }
+            
+            .legend {
+                position: static;
+                margin: 20px;
+                width: calc(100% - 40px);
+            }
+            
+            .map-controls {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                right: initial;
+                top: initial;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: calc(100% - 40px);
+            }
+
+            .filter-controls {
+                position: static;
+                flex-wrap: wrap;
+                justify-content: center;
+                margin: 10px 20px;
+                width: calc(100% - 40px);
+                transform: none;
+            }
+            
+            .control-btn {
+                min-width: unset;
+                flex-grow: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🇮🇳 Incredible India</h1>
+        <p>Explore India's Heritage with Precise Coordinates</p>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+        
+        <div class="search-container">
+            <div class="search-wrapper">
+                <input type="text" class="search-box" placeholder="🔍 Search for places or states..." id="searchBox">
+                <div class="autocomplete-suggestions" id="autocompleteSuggestions"></div>
+            </div>
+        </div>
+        
+        <div class="map-controls">
+            <button class="control-btn" id="resetBtn">🎯 Reset View</button>
+            <button class="control-btn" id="locateBtn">📍 My Location</button>
+        </div>
+
+        <div class="filter-controls" id="filterControls">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="temple">Temples</button>
+            <button class="filter-btn" data-filter="waterfall">Waterfalls</button>
+            <button class="filter-btn" data-filter="monument">Monuments</button>
+            <button class="filter-btn" data-filter="beach">Beaches</button>
+            <button class="filter-btn" data-filter="hill-station">Hill Stations</button>
+            <button class="filter-btn" data-filter="wildlife">Wildlife</button>
+        </div>
+        
+        <div class="legend">
+            <h4>Tourist Destinations</h4>
+            <div class="legend-item">
+                <div class="legend-icon temple"></div>
+                <span>Temples & Religious Sites</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon waterfall"></div>
+                <span>Waterfalls & Natural Wonders</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon monument"></div>
+                <span>Historical Monuments</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon beach"></div>
+                <span>Beaches & Coastal Areas</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon hill-station"></div>
+                <span>Hill Stations & Mountains</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-icon wildlife"></div>
+                <span>Wildlife & National Parks</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <button class="close-btn" onclick="closeSidebar()">×</button>
+        <div class="place-info" id="placeInfo"></div>
+    </div>
+
+    <div class="loading" id="loading">Loading map data...</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script>
+        // Initialize map centered on India
+        const map = L.map('map').setView([20.5937, 78.9629], 5);
+
+        // Default Map layer (OpenStreetMap)
+        const defaultLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // State coordinates for zooming
+        const stateCoords = {
+            'andhra pradesh': { coords: [15.9129, 80.1539], zoom: 7 },
+            'telangana': { coords: [18.1124, 79.0193], zoom: 7 },
+            'tamil nadu': { coords: [11.1271, 78.6569], zoom: 7 },
+            'kerala': { coords: [10.8505, 76.2711], zoom: 7 },
+            'karnataka': { coords: [14.5204, 75.7225], zoom: 7 },
+            'goa': { coords: [15.2993, 74.1240], zoom: 9 },
+            'maharashtra': { coords: [19.7515, 75.7139], zoom: 6 },
+            'rajasthan': { coords: [27.0238, 74.2179], zoom: 6 },
+            'uttar pradesh': { coords: [26.8467, 80.9462], zoom: 6 },
+            'himachal pradesh': { coords: [31.1048, 77.1734], zoom: 7 },
+            'west bengal': { coords: [22.9868, 87.8550], zoom: 7 },
+            'assam': { coords: [26.2006, 92.9376], zoom: 7 },
+            'odisha': { coords: [20.9517, 85.0985], zoom: 7 },
+            'madhya pradesh': { coords: [22.9734, 78.6569], zoom: 6 },
+            'meghalaya': { coords: [25.4670, 91.8842], zoom: 8 },
+            // Add more states as needed
+        };
+
+
+        // Tourist places data with exact coordinates
+        const touristPlaces = {
+            // Temples
+            'taj-mahal': { name: 'Taj Mahal', coords: [27.1751, 78.0421], type: 'monument', location: 'Agra, Uttar Pradesh', description: 'One of the Seven Wonders of the World, this ivory-white marble mausoleum was built by Mughal emperor Shah Jahan in memory of his wife Mumtaz Mahal.', highlights: ['UNESCO World Heritage Site', 'Symbol of eternal love'], bestTime: 'October to March', icon: '🕌' },
+            'golden-temple': { name: 'Golden Temple', coords: [31.6200, 74.8765], type: 'temple', location: 'Amritsar, Punjab', description: 'The holiest shrine of Sikhism, covered in gold and surrounded by a sacred pool.', highlights: ['Sikh pilgrimage center', 'Free community kitchen'], bestTime: 'October to March', icon: '🏛️' },
+            'kashi-vishwanath-temple': { name: 'Kashi Vishwanath Temple', coords: [25.3176, 83.0099], type: 'temple', location: 'Varanasi, Uttar Pradesh', description: 'One of the most sacred temples dedicated to Lord Shiva, located in the spiritual capital of India.', highlights: ['One of 12 Jyotirlingas', 'Ancient spiritual center'], bestTime: 'October to March', icon: '🕉️' },
+            'meenakshi-temple': { name: 'Meenakshi Temple', coords: [9.9195, 78.1193], type: 'temple', location: 'Madurai, Tamil Nadu', description: 'Ancient temple dedicated to Goddess Meenakshi, famous for its colorful gopurams.', highlights: ['Dravidian architecture', '14 colorful gopurams'], bestTime: 'October to March', icon: '🛕' },
+            'jagannath-temple': { name: 'Jagannath Temple', coords: [19.8048, 85.8315], type: 'temple', location: 'Puri, Odisha', description: 'Famous temple dedicated to Lord Jagannath, known for the annual Rath Yatra festival.', highlights: ['Annual Rath Yatra', 'One of Char Dham'], bestTime: 'October to March', icon: '🏛️' },
+            'tirumala-venkateswara-temple': { name: 'Tirumala Venkateswara Temple', coords: [13.6832, 79.3474], type: 'temple', location: 'Tirupati, Andhra Pradesh', description: 'One of the richest and most visited temples in the world, dedicated to Lord Venkateswara.', highlights: ['Richest temple in the world', 'Millions of pilgrims annually'], bestTime: 'September to February', icon: '⛩️' },
+            'somnath-temple': { name: 'Somnath Temple', coords: [20.8880, 70.4017], type: 'temple', location: 'Somnath, Gujarat', description: 'First among the twelve Jyotirlinga temples, located on the shores of Arabian Sea.', highlights: ['First Jyotirlinga', 'Seaside location'], bestTime: 'October to March', icon: '🌊' },
+            'konark-sun-temple': { name: 'Konark Sun Temple', coords: [19.8876, 86.0943], type: 'temple', location: 'Odisha', description: 'Ancient sun temple designed as a colossal chariot.', highlights: ['UNESCO World Heritage Site', 'Sun Temple architecture'], bestTime: 'October to March', icon: '☀️' },
+            'brihadeeswarar-temple': { name: 'Brihadeeswarar Temple', coords: [10.7825, 79.1317], type: 'temple', location: 'Thanjavur, Tamil Nadu', description: 'Magnificent Chola temple dedicated to Lord Shiva.', highlights: ['UNESCO World Heritage Site', 'Chola architecture'], bestTime: 'October to March', icon: '🏗️' },
+            'akshardham-temple': { name: 'Akshardham Temple', coords: [28.6127, 77.2773], type: 'temple', location: 'Delhi', description: 'Modern Hindu temple complex showcasing Indian culture.', highlights: ['Modern architecture', 'Cultural exhibitions'], bestTime: 'October to March', icon: '🏛️' },
+            'sree-padmanabhaswamy-temple': { name: 'Sree Padmanabhaswamy Temple', coords: [8.4842, 76.9531], type: 'temple', location: 'Thiruvananthapuram, Kerala', description: 'An ancient temple dedicated to Lord Vishnu, known for its immense wealth and Dravidian architecture.', highlights: ['Richest temple in the world', 'Dravidian architecture'], bestTime: 'October to March', icon: '🛕' },
+            'ramanathaswamy-temple': { name: 'Ramanathaswamy Temple', coords: [9.2881, 79.3175], type: 'temple', location: 'Rameswaram, Tamil Nadu', description: 'One of the twelve Jyotirlinga temples, highly sacred for Hindus.', highlights: ['One of Char Dham pilgrimage sites', 'Longest temple corridor in India'], bestTime: 'October to March', icon: '🕉️' },
+            'lepakshi-temple': { name: 'Lepakshi Temple', coords: [13.8016, 77.6062], type: 'temple', location: 'Lepakshi, Andhra Pradesh', description: 'Famous for its hanging pillar and Veerabhadra Temple, showcasing Vijayanagara architectural style.', highlights: ['Hanging Pillar', 'Vijayanagara architecture'], bestTime: 'October to March', icon: '🛕' },
+            'murudeshwar-temple': { name: 'Murudeshwar Temple', coords: [14.0924, 74.4897], type: 'temple', location: 'Murudeshwar, Karnataka', description: 'Home to the second tallest Shiva statue in the world, overlooking the Arabian Sea.', highlights: ['Second tallest Shiva statue', 'Beachside location'], bestTime: 'October to March', icon: '🌊' },
+            'sri-salahuddin-baba-dargah': {name: 'Sri Salahuddin Baba Dargah', coords: [17.3887, 78.4862], type: 'temple', location: 'Hyderabad, Telangana', description: 'A revered dargah known for its spiritual significance.', highlights: ['Spiritual site'], bestTime: 'All year', icon: '🕌'},
+            'bhadrachalam-temple': {name: 'Bhadrachalam Temple', coords: [17.6625, 80.8800], type: 'temple', location: 'Bhadrachalam, Telangana', description: 'Ancient temple dedicated to Lord Rama, situated on the banks of Godavari River.', highlights: ['Lord Rama Temple', 'Godavari River'], bestTime: 'October to March', icon: '🛕'},
+            'yadagirigutta-temple': {name: 'Yadagirigutta Temple', coords: [17.5855, 79.0304], type: 'temple', location: 'Yadadri Bhuvanagiri, Telangana', description: 'Famous temple dedicated to Lord Narasimha, undergoing massive renovation.', highlights: ['Lord Narasimha Temple', 'Hilltop location'], bestTime: 'October to March', icon: '🛕'},
+            'thousand-pillar-temple': {name: 'Thousand Pillar Temple', coords: [17.9715, 79.5695], type: 'temple', location: 'Warangal, Telangana', description: 'Historic Kakatiya architecture with intricately carved pillars.', highlights: ['Kakatiya architecture', 'Intricate carvings'], bestTime: 'October to March', icon: '🏛️'},
+            'ramappa-temple': {name: 'Ramappa Temple', coords: [18.2650, 79.9320], type: 'temple', location: 'Palampet, Telangana', description: 'UNESCO World Heritage site, famous for its floating brick technology.', highlights: ['UNESCO World Heritage', 'Floating bricks'], bestTime: 'October to March', icon: '🏛️'},
+            'sri-kanaka-durga-temple': {name: 'Sri Kanaka Durga Temple', coords: [16.5292, 80.6127], type: 'temple', location: 'Vijayawada, Andhra Pradesh', description: 'One of the most popular temples dedicated to Goddess Durga, located on Indrakeeladri Hills.', highlights: ['Goddess Durga Temple', 'Indrakeeladri Hills'], bestTime: 'October to March', icon: '🛕'},
+            'sri-kalahasteeswara-temple': {name: 'Sri Kalahasteeswara Temple', coords: [13.7497, 79.6985], type: 'temple', location: 'Srikalahasti, Andhra Pradesh', description: 'Famous Shiva temple representing the element Vayu (Air).', highlights: ['Vayu Lingam', 'Shiva Temple'], bestTime: 'October to March', icon: '🕉️'},
+            'simhachalam-temple': {name: 'Simhachalam Temple', coords: [17.7770, 83.2798], type: 'temple', location: 'Visakhapatnam, Andhra Pradesh', description: 'Ancient temple dedicated to Lord Narasimha, known for its unique idol covered in sandalwood paste.', highlights: ['Lord Narasimha Temple', 'Sandalwood paste idol'], bestTime: 'October to March', icon: '🛕'},
+            'ananthagiri-hills-temple': {name: 'Ananthagiri Hills Temple', coords: [17.3468, 77.8649], type: 'temple', location: 'Vikarabad, Telangana', description: 'Ancient temple amidst the Ananthagiri Hills, a popular trekking spot.', highlights: ['Ancient temple', 'Trekking spot'], bestTime: 'October to March', icon: '🛕'},
+            'chilkur-balaji-temple': {name: 'Chilkur Balaji Temple', coords: [17.3117, 78.2255], type: 'temple', location: 'Hyderabad, Telangana', description: 'Known as "Visa Balaji Temple" for its devotees often seeking blessings for visa approvals.', highlights: ['Visa Temple', 'No Hundi'], bestTime: 'All year', icon: '🛕'},
+            'srisailam-temple': {name: 'Srisailam Temple', coords: [16.0709, 78.8680], type: 'temple', location: 'Srisailam, Andhra Pradesh', description: 'One of the 12 Jyotirlingas and 18 Shakti Peethas, dedicated to Lord Shiva and Goddess Bhramaramba.', highlights: ['Jyotirlinga', 'Shakti Peetha'], bestTime: 'October to March', icon: '🕉️'},
+            'ahobilam-temple': {name: 'Ahobilam Temple', coords: [15.1396, 78.7180], type: 'temple', location: 'Kurnool, Andhra Pradesh', description: 'A unique complex of nine temples dedicated to different forms of Lord Narasimha.', highlights: ['Nine Narasimha Temples', 'Pilgrimage site'], bestTime: 'October to March', icon: '🛕'},
+            'draksharamam-temple': {name: 'Draksharamam Temple', coords: [16.9070, 82.0150], type: 'temple', location: 'East Godavari, Andhra Pradesh', description: 'One of the Pancharama Kshetras, a significant Shiva temple.', highlights: ['Pancharama Kshetra', 'Shiva Temple'], bestTime: 'October to March', icon: '🕉️'},
+            'thiruvannamalai-arunachaleswarar-temple': { name: 'Arunachaleswarar Temple', coords: [12.2287, 79.0683], type: 'temple', location: 'Thiruvannamalai, Tamil Nadu', description: 'Famous Shiva temple associated with the element of fire.', highlights: ['Annamalaiyar Temple', 'Fire element'], bestTime: 'October to March', icon: '🕉️' },
+            'chidanambaram-nataraja-temple': { name: 'Chidambaram Nataraja Temple', coords: [11.3995, 79.6937], type: 'temple', location: 'Chidambaram, Tamil Nadu', description: 'Ancient temple dedicated to Lord Nataraja (dancing form of Shiva).', highlights: ['Cosmic Dance', 'Ancient architecture'], bestTime: 'October to March', icon: '🛕' },
+            'srirangam-ranganathaswamy-temple': { name: 'Srirangam Ranganathaswamy Temple', coords: [10.8659, 78.6946], type: 'temple', location: 'Tiruchirappalli, Tamil Nadu', description: 'Largest functioning Hindu temple in the world, dedicated to Lord Ranganatha (Vishnu).', highlights: ['Largest functioning temple', 'Vaishnavite shrine'], bestTime: 'October to March', icon: '🛕' },
+            'madurai-azhagar-kovil': { name: 'Azhagar Kovil', coords: [10.0886, 78.2045], type: 'temple', location: 'Madurai, Tamil Nadu', description: 'Ancient temple dedicated to Lord Vishnu, located near the Alagar Hills.', highlights: ['Lord Vishnu Temple', 'Alagar Hills'], bestTime: 'October to March', icon: '🛕' },
+            'kanyakumari-devi-kanyakumari-temple': { name: 'Devi Kanyakumari Temple', coords: [8.0883, 77.5593], type: 'temple', location: 'Kanyakumari, Tamil Nadu', description: 'Temple dedicated to Goddess Kanyakumari, located at the southernmost tip of India.', highlights: ['Southernmost tip', 'Goddess Kanya Kumari'], bestTime: 'October to March', icon: '🛕' },
+            'gangaikonda-cholapuram': { name: 'Gangaikonda Cholapuram Temple', coords: [11.1963, 79.4443], type: 'temple', location: 'Ariyalur, Tamil Nadu', description: 'A magnificent Chola temple built by Rajendra Chola I, a UNESCO World Heritage site.', highlights: ['Chola architecture', 'UNESCO World Heritage'], bestTime: 'October to March', icon: '🏛️' },
+            'velankanni-basilica': { name: 'Basilica of Our Lady of Good Health', coords: [10.3999, 79.8471], type: 'temple', location: 'Velankanni, Tamil Nadu', description: 'A popular Christian pilgrimage site, known for its miraculous healing powers.', highlights: ['Christian Pilgrimage', 'Miraculous powers'], bestTime: 'All year', icon: '⛪' },
+            'palani-murugan-temple': { name: 'Arulmigu Dhandayuthapani Swamy Temple', coords: [10.4503, 77.5146], type: 'temple', location: 'Palani, Tamil Nadu', description: 'One of the Arupadaiveedu (six abodes) of Lord Murugan, located on a hilltop.', highlights: ['Lord Murugan Temple', 'Hilltop'], bestTime: 'October to March', icon: '🛕' },
+            'vellore-sri-lakshmi-narayani-golden-temple': { name: 'Sripuram Golden Temple', coords: [12.9157, 79.1173], type: 'temple', location: 'Vellore, Tamil Nadu', description: 'A modern temple with the Vimanam and Ardha Mandapam covered in gold.', highlights: ['Golden temple', 'Modern architecture'], bestTime: 'October to March', icon: '🛕' },
+            'kumbakonam-temples': { name: 'Kumbakonam Temples', coords: [10.9632, 79.3871], type: 'temple', location: 'Kumbakonam, Tamil Nadu', description: 'Town known for numerous ancient Hindu temples, often called "Temple Town".', highlights: ['Many ancient temples', 'Mahamaham Festival'], bestTime: 'October to March', icon: '🛕' },
+            'tiruttani-subramanya-swamy-temple': { name: 'Tiruttani Subramanya Swamy Temple', coords: [13.1895, 79.6200], type: 'temple', location: 'Tiruttani, Tamil Nadu', description: 'One of the Arupadaiveedu (six abodes) of Lord Murugan, on a hill.', highlights: ['Lord Murugan Temple', 'Hilltop'], bestTime: 'October to March', icon: '🛕' },
+            'swamimalai-murugan-temple': { name: 'Swamimalai Murugan Temple', coords: [10.9388, 79.3366], type: 'temple', location: 'Swamimalai, Tamil Nadu', description: 'One of the Arupadaiveedu of Lord Murugan, where Murugan preached to Shiva.', highlights: ['Lord Murugan Temple', 'Unique legend'], bestTime: 'October to March', icon: '🛕' },
+            'erode-bannari-amman-temple': { name: 'Bannari Amman Temple', coords: [11.6033, 77.0607], type: 'temple', location: 'Erode, Tamil Nadu', description: 'Famous Mariamman temple, pilgrimage site.', highlights: ['Mariamman Temple', 'Pilgrimage'], bestTime: 'All year', icon: '🛕' },
+            'coimbatore-marudhamalai-murugan-temple': { name: 'Marudhamalai Murugan Temple', coords: [11.0264, 76.8407], type: 'temple', location: 'Coimbatore, Tamil Nadu', description: 'Hill temple dedicated to Lord Murugan, offering panoramic views.', highlights: ['Hilltop temple', 'Panoramic views'], bestTime: 'All year', icon: '🛕' },
+            'kanchipuram-kailasanathar-temple': { name: 'Kailasanathar Temple', coords: [12.8364, 79.6975], type: 'temple', location: 'Kanchipuram, Tamil Nadu', description: 'Oldest structure in Kanchipuram, a Pallava architecture marvel dedicated to Shiva.', highlights: ['Pallava architecture', 'Oldest temple'], bestTime: 'October to March', icon: '🏛️' },
+            'kutralam-courtagaleeswarar-temple': { name: 'Courtallam Courtagaleeswarar Temple', coords: [8.9312, 77.2847], type: 'temple', location: 'Courtallam, Tamil Nadu', description: 'Temple dedicated to Shiva near the famous Courtallam Falls.', highlights: ['Shiva Temple', 'Near waterfalls'], bestTime: 'June to September', icon: '🕉️' },
+            'thiruvarur-thyagaraja-swamy-temple': { name: 'Thyagaraja Swamy Temple', coords: [10.7735, 79.8229], type: 'temple', location: 'Thiruvarur, Tamil Nadu', description: 'Ancient Shiva temple, known for its giant temple chariot.', highlights: ['Giant chariot', 'Shiva Temple'], bestTime: 'October to March', icon: '🛕' },
+            'dindigul-abirami-amman-temple': { name: 'Abirami Amman Temple', coords: [10.3698, 77.9805], type: 'temple', location: 'Dindigul, Tamil Nadu', description: 'Popular temple for Goddess Abirami.', highlights: ['Goddess Temple', 'Pilgrimage'], bestTime: 'All year', icon: '🛕' },
+            'tenkasi-kasiviswanathar-temple': { name: 'Kasiviswanathar Temple', coords: [8.9660, 77.3079], type: 'temple', location: 'Tenkasi, Tamil Nadu', description: 'Famous Shiva temple with a large gopuram.', highlights: ['Shiva Temple', 'Large Gopuram'], bestTime: 'October to March', icon: '🛕' },
+            'thiruchendur-murugan-temple': { name: 'Thiruchendur Murugan Temple', coords: [8.4870, 78.1408], type: 'temple', location: 'Thiruchendur, Tamil Nadu', description: 'Coastal temple of Lord Murugan, one of the Arupadaiveedu.', highlights: ['Coastal temple', 'Lord Murugan'], bestTime: 'October to March', icon: '🛕' },
+            'suchindram-thanumalayan-temple': { name: 'Thanumalayan Temple', coords: [8.1633, 77.4722], type: 'temple', location: 'Suchindram, Tamil Nadu', description: 'Unique temple dedicated to the Trinity - Shiva, Vishnu, and Brahma.', highlights: ['Trinity temple', 'Musical pillars'], bestTime: 'October to March', icon: '🛕' },
+            'kanyakumari-vivekananda-rock-memorial': { name: 'Vivekananda Rock Memorial', coords: [8.0772, 77.5492], type: 'monument', location: 'Kanyakumari, Tamil Nadu', description: 'A sacred monument built on a rock island, associated with Swami Vivekananda.', highlights: ['Swami Vivekananda', 'Rock island'], bestTime: 'October to March', icon: '🗿' },
+            'sri-sita-ramachandraswamy-temple': { name: 'Sri Sita Ramachandraswamy Temple', coords: [17.6534, 80.8800], type: 'temple', location: 'Bhadrachalam, Telangana', description: 'Ancient temple of Lord Rama, a major pilgrimage site in Telangana.', highlights: ['Lord Rama', 'Godavari River'], bestTime: 'October to March', icon: '🛕' },
+            'alangudi-gurustalam': { name: 'Alangudi Guru Sthalam', coords: [10.8797, 79.4673], type: 'temple', location: 'Kumbakonam, Tamil Nadu', description: 'One of the Navagraha temples, dedicated to Guru (Jupiter).', highlights: ['Navagraha temple', 'Guru'], bestTime: 'All year', icon: '🛕' },
+            'thirunallar-saneeswaran-temple': { name: 'Thirunallar Saneeswaran Temple', coords: [10.9238, 79.7900], type: 'temple', location: 'Karaikal, Puducherry (near Tamil Nadu)', description: 'Famous temple for Saneeswaran (Lord Saturn), part of Navagraha temples.', highlights: ['Navagraha temple', 'Lord Saturn'], bestTime: 'All year', icon: '🛕' },
+            'thanjavur-schwartz-church': { name: 'Schwartz Church', coords: [10.7825, 79.1317], type: 'temple', location: 'Thanjavur, Tamil Nadu', description: 'Historic church within the Brihadeeswarar Temple complex, reflecting European architecture.', highlights: ['Historic Church', 'European architecture'], bestTime: 'All year', icon: '⛪' },
+            'sri-rangam-jeeyar-mutt': { name: 'Srirangam Jeeyar Mutt', coords: [10.8659, 78.6946], type: 'temple', location: 'Srirangam, Tamil Nadu', description: 'A significant monastic institution for Sri Vaishnavism.', highlights: ['Monastic Institution', 'Sri Vaishnavism'], bestTime: 'All year', icon: '🛕' },
+            'poondi-madha-basilica': { name: 'Poondi Madha Basilica', coords: [10.9757, 79.1912], type: 'temple', location: 'Poondi, Tamil Nadu', description: 'A Roman Catholic basilica dedicated to St. Mary, known for miracles.', highlights: ['Catholic Basilica', 'Miracles'], bestTime: 'All year', icon: '⛪' },
+            'chidambaram-thillai-kali-amman-temple': { name: 'Thillai Kali Amman Temple', coords: [11.4057, 79.6918], type: 'temple', location: 'Chidambaram, Tamil Nadu', description: 'Dedicated to Goddess Kali, known for its fierce deity.', highlights: ['Goddess Kali', 'Fierce deity'], bestTime: 'All year', icon: '🛕' },
+            'coimbatore-dhyanalinga': { name: 'Dhyanalinga', coords: [10.9930, 76.6800], type: 'temple', location: 'Coimbatore, Tamil Nadu', description: 'A unique meditative space at Isha Yoga Center, not a traditional temple.', highlights: ['Meditative space', 'Isha Yoga Center'], bestTime: 'All year', icon: '🧘' },
+            'tirupathi-chandragiri-fort': { name: 'Chandragiri Fort', coords: [13.5855, 79.3562], type: 'monument', location: 'Tirupati, Andhra Pradesh', description: 'Historical fort with a palace and museum, former capital of Vijayanagara empire.', highlights: ['Vijayanagara Empire', 'Historical Fort'], bestTime: 'October to March', icon: '🏰' },
+            'visakhapatnam-iskcon-temple': { name: 'ISKCON Temple, Visakhapatnam', coords: [17.7027, 83.3104], type: 'temple', location: 'Visakhapatnam, Andhra Pradesh', description: 'Modern Hare Krishna temple overlooking the Bay of Bengal.', highlights: ['Hare Krishna Temple', 'Sea view'], bestTime: 'All year', icon: '🛕' },
+            'tirupati-govindaraja-swamy-temple': { name: 'Govindaraja Swamy Temple', coords: [13.6339, 79.4184], type: 'temple', location: 'Tirupati, Andhra Pradesh', description: 'Prominent temple in Tirupati, dedicated to Lord Govindaraja.', highlights: ['Lord Govindaraja', 'Pilgrimage'], bestTime: 'All year', icon: '🛕' },
+            'nellore-ranganatha-temple': { name: 'Sri Ranganathaswamy Temple, Nellore', coords: [14.4447, 79.9702], type: 'temple', location: 'Nellore, Andhra Pradesh', description: 'Ancient temple dedicated to Lord Ranganatha (Vishnu), with impressive gopuram.', highlights: ['Lord Ranganatha', 'Impressive gopuram'], bestTime: 'October to March', icon: '🛕' },
+            'srikalahasti-waterfall': { name: 'Tada Falls (Ubbalamadugu Falls)', coords: [13.6826, 79.8055], type: 'waterfall', location: 'Srikalahasti, Andhra Pradesh', description: 'A seasonal waterfall popular for trekking and nature lovers.', highlights: ['Trekking spot', 'Seasonal waterfall'], bestTime: 'Monsoon', icon: '💧' },
+            'kothagudem-bhadrachalam-paper-mills': { name: 'ITC Paperboards and Specialty Papers Division', coords: [17.6713, 80.8037], type: 'monument', location: 'Kothagudem, Telangana', description: 'One of India\'s largest paper manufacturing units (industrial tourism).', highlights: ['Industrial Site', 'Paper Manufacturing'], bestTime: 'All year', icon: '🏭' },
+            'pocharam-dam': { name: 'Pocharam Dam & Wildlife Sanctuary', coords: [18.1500, 78.4333], type: 'wildlife', location: 'Medak, Telangana', description: 'Dam and wildlife sanctuary, good for bird watching.', highlights: ['Bird watching', 'Dam'], bestTime: 'October to March', icon: '🦢' },
+            'khammam-fort': { name: 'Khammam Fort', coords: [17.2505, 80.1502], type: 'monument', location: 'Khammam, Telangana', description: 'Historic fort with a mix of Hindu and Islamic architectural styles.', highlights: ['Historic Fort', 'Architectural blend'], bestTime: 'October to March', icon: '🏰' },
+            'rajahmundry-godavari-bridge': { name: 'Godavari Arch Bridge', coords: [16.9936, 81.7618], type: 'monument', location: 'Rajahmundry, Andhra Pradesh', description: 'One of the longest rail-cum-road bridges in Asia over Godavari River.', highlights: ['Longest bridges', 'Godavari River'], bestTime: 'All year', icon: '🌉' },
+            'amalapuram-konaseema': { name: 'Konaseema', coords: [16.5937, 82.0298], type: 'beach', location: 'East Godavari, Andhra Pradesh', description: 'A delta region known as "God\'s Own Delta" with scenic backwaters and lush greenery.', highlights: ['Godavari Delta', 'Backwaters'], bestTime: 'October to March', icon: '🌴' },
+            'pulicat-lake': { name: 'Pulicat Lake Bird Sanctuary', coords: [13.7196, 80.1983], type: 'wildlife', location: 'Nellore, Andhra Pradesh / Thiruvallur, Tamil Nadu', description: 'Second largest brackish water lagoon in India, famous for migratory birds.', highlights: ['Migratory Birds', 'Brackish Lagoon'], bestTime: 'October to March', icon: '🦢' },
+            'aravalli-mangalagiri-undavalli-caves': { name: 'Undavalli Caves', coords: [16.5118, 80.5739], type: 'monument', location: 'Guntur, Andhra Pradesh', description: 'Ancient rock-cut caves showcasing Buddhist and Hindu sculptures.', highlights: ['Rock-cut caves', 'Buddhist/Hindu art'], bestTime: 'October to March', icon: '🖼️' },
+            'etanagaram-pakhal-lake': { name: 'Pakhal Lake & Wildlife Sanctuary', coords: [17.9304, 79.9485], type: 'wildlife', location: 'Warangal, Telangana', description: 'Artificial lake and sanctuary, home to various flora and fauna.', highlights: ['Artificial lake', 'Wildlife'], bestTime: 'October to March', icon: '🦌' },
+            'vijayawada-bhavani-island': { name: 'Bhavani Island', coords: [16.5167, 80.6000], type: 'beach', location: 'Vijayawada, Andhra Pradesh', description: 'One of the largest river islands, popular for recreation and water sports.', highlights: ['River island', 'Water sports'], bestTime: 'October to March', icon: '🚣' },
+            'nelapattu-bird-sanctuary': { name: 'Nelapattu Bird Sanctuary', coords: [14.0722, 79.9722], type: 'wildlife', location: 'Nellore, Andhra Pradesh', description: 'Known for breeding spot of Spot-billed Pelicans.', highlights: ['Pelican breeding', 'Bird sanctuary'], bestTime: 'October to March', icon: '🦢' },
+            'kurnool-belum-caves': { name: 'Belum Caves', coords: [15.0069, 78.1189], type: 'monument', location: 'Kurnool, Andhra Pradesh', description: 'Second largest cave system in India, known for stalactite and stalagmite formations.', highlights: ['Cave system', 'Formations'], bestTime: 'October to March', icon: '🦇' },
+            'guntur-nagarjunakonda': { name: 'Nagarjunakonda', coords: [16.5390, 79.2480], type: 'monument', location: 'Guntur, Andhra Pradesh', description: 'Historic Buddhist site, now an island in Nagarjuna Sagar Dam.', highlights: ['Buddhist site', 'Island museum'], bestTime: 'October to March', icon: '🗿' },
+            'chennai-mahabalipuram-five-rathas': { name: 'Five Rathas', coords: [12.6190, 80.1920], type: 'monument', location: 'Mahabalipuram, Tamil Nadu', description: 'Monolithic rock-cut temples, a UNESCO World Heritage site.', highlights: ['Rock-cut temples', 'UNESCO World Heritage'], bestTime: 'October to March', icon: '🗿' },
+            'kovalam-lighthouse': { name: 'Kovalam Lighthouse', coords: [8.4004, 76.9786], type: 'monument', location: 'Kovalam, Kerala (near Tamil Nadu)', description: 'Iconic lighthouse offering panoramic views of the Arabian Sea.', highlights: ['Panoramic views', 'Iconic landmark'], bestTime: 'October to March', icon: '🗼' },
+            'theni-suruli-falls': { name: 'Suruli Falls', coords: [9.7126, 77.2797], type: 'waterfall', location: 'Theni, Tamil Nadu', description: 'Cascading waterfall near the Meghamalai hills, mentioned in Silappathikaram.', highlights: ['Cascading falls', 'Mythological link'], bestTime: 'Monsoon', icon: '💧' },
+            'kodaikanal-coakers-walk': { name: 'Coaker\'s Walk', coords: [10.2307, 77.4947], type: 'hill-station', location: 'Kodaikanal, Tamil Nadu', description: 'A paved pedestrian path offering stunning panoramic views of the valleys.', highlights: ['Panoramic views', 'Scenic walk'], bestTime: 'April to June, Sep to Oct', icon: '🌲' },
+            'ooty-botanical-garden': { name: 'Government Botanical Garden', coords: [11.4116, 76.7022], type: 'hill-station', location: 'Ooty, Tamil Nadu', description: 'Spread over 55 acres, showcasing a vast variety of plants, trees, and flowers.', highlights: ['Diverse flora', 'Flower shows'], bestTime: 'April to June, Sep to Nov', icon: '🌹' },
+            'kanyakumari-thiruvalluvar-statue': { name: 'Thiruvalluvar Statue', coords: [8.0772, 77.5492], type: 'monument', location: 'Kanyakumari, Tamil Nadu', description: 'A massive stone statue of the Tamil poet and philosopher Thiruvalluvar.', highlights: ['Giant statue', 'Tamil poet'], bestTime: 'October to March', icon: '🗿' },
+            'madurai-gandhi-museum': { name: 'Gandhi Memorial Museum, Madurai', coords: [9.9324, 78.1408], type: 'monument', location: 'Madurai, Tamil Nadu', description: 'Dedicated to Mahatma Gandhi, housed in the old palace of Rani Mangammal.', highlights: ['Mahatma Gandhi', 'Historic palace'], bestTime: 'All year', icon: '🏛️' },
+            'rameshwaram-pamban-bridge': { name: 'Pamban Bridge', coords: [9.2713, 79.2882], type: 'monument', location: 'Rameswaram, Tamil Nadu', description: 'India\'s first sea bridge, connecting Rameswaram Island to mainland India.', highlights: ['Sea bridge', 'Engineering marvel'], bestTime: 'All year', icon: '🌉' },
+            'salem-yercaud-loop-road': { name: 'Yercaud Loop Road', coords: [11.7674, 78.1997], type: 'hill-station', location: 'Yercaud, Tamil Nadu', description: 'Scenic drive with 20 hairpin bends, offering views of the valley.', highlights: ['Scenic drive', 'Hairpin bends'], bestTime: 'October to June', icon: '🚗' },
+            'hosur-thaneer-panthal': { name: 'Thanneer Panthal', coords: [12.7570, 77.8509], type: 'waterfall', location: 'Krishnagiri, Tamil Nadu (near Hosur)', description: 'Small seasonal waterfall, popular local picnic spot.', highlights: ['Seasonal waterfall', 'Picnic spot'], bestTime: 'Monsoon', icon: '💧' },
+            'coimbatore-voc-park': { name: 'VOC Park and Zoo', coords: [11.0028, 76.9744], type: 'wildlife', location: 'Coimbatore, Tamil Nadu', description: 'A popular recreational park with a mini zoo and children\'s train.', highlights: ['Mini zoo', 'Recreational park'], bestTime: 'All year', icon: '🐒' },
+            'mudumalai-national-park': { name: 'Mudumalai National Park', coords: [11.5661, 76.5367], type: 'wildlife', location: 'Nilgiris, Tamil Nadu', description: 'Part of Nilgiri Biosphere Reserve, known for elephants and tigers.', highlights: ['Elephant reserve', 'Tiger spotting'], bestTime: 'October to May', icon: '🐘' },
+            'anamalai-tiger-reserve': { name: 'Anamalai Tiger Reserve', coords: [10.3340, 77.0142], type: 'wildlife', location: 'Pollachi, Tamil Nadu', description: 'Formerly Indira Gandhi Wildlife Sanctuary, known for tigers, elephants, and rich biodiversity.', highlights: ['Tiger reserve', 'Biodiversity'], bestTime: 'October to March', icon: '🐅' },
+            'point-calimere-wildlife-sanctuary': { name: 'Point Calimere Wildlife and Bird Sanctuary', coords: [10.2858, 79.8458], type: 'wildlife', location: 'Nagapattinam, Tamil Nadu', description: 'Known for migratory birds like Flamingos and Blackbuck antelope.', highlights: ['Flamingos', 'Blackbuck'], bestTime: 'October to January', icon: '🦢' },
+            'chennai-guindy-national-park': { name: 'Guindy National Park', coords: [13.0039, 80.2223], type: 'wildlife', location: 'Chennai, Tamil Nadu', description: 'One of the smallest national parks, located within a city, known for Blackbuck and deer.', highlights: ['Urban National Park', 'Blackbuck'], bestTime: 'All year', icon: '🦌' },
+            'nellai-kalakkad-mundanthurai-tiger-reserve': { name: 'Kalakkad Mundanthurai Tiger Reserve', coords: [8.6500, 77.4000], type: 'wildlife', location: 'Tirunelveli, Tamil Nadu', description: 'Second largest protected area in Tamil Nadu, significant for tiger conservation.', highlights: ['Tiger conservation', 'Rainforests'], bestTime: 'October to March', icon: '🐅' },
+            'chennai-breezy-beach': { name: 'Breezy Beach', coords: [12.9669, 80.2562], type: 'beach', location: 'Chennai, Tamil Nadu', description: 'A relatively quiet and clean beach in Chennai, popular for serene evenings.', highlights: ['Quiet beach', 'Clean'], bestTime: 'November to February', icon: '🏖️' },
+            'chennai-elliots-beach': { name: 'Elliot\'s Beach (Besant Nagar Beach)', coords: [12.9961, 80.2605], type: 'beach', location: 'Chennai, Tamil Nadu', description: 'A popular urban beach in Chennai, known for its pleasant atmosphere.', highlights: ['Urban beach', 'Evening hangout'], bestTime: 'November to February', icon: '🏖️' },
+            'pondicherry-promenade-beach': { name: 'Promenade Beach', coords: [11.9350, 79.8350], type: 'beach', location: 'Puducherry (near Tamil Nadu)', description: 'Iconic beachfront in Puducherry, known for its colonial architecture.', highlights: ['Colonial architecture', 'Seafront walk'], bestTime: 'October to March', icon: '🏖️' },
+            'kovalam-beach': { name: 'Kovalam Beach', coords: [8.4004, 76.9786], type: 'beach', location: 'Kerala', description: 'Crescent-shaped beach with three adjacent beaches.', highlights: ['Lighthouse Beach', 'Ayurvedic treatments'], bestTime: 'September to March', icon: '🌊' },
+            'palolem-beach': { name: 'Palolem Beach', coords: [15.0100, 74.0233], type: 'beach', location: 'Goa', description: 'Pristine beach with palm trees and calm waters.', highlights: ['Crescent-shaped beach', 'Dolphin watching'], bestTime: 'November to March', icon: '🥥' },
+            'dhanushkodi-beach': { name: 'Dhanushkodi Beach', coords: [9.1753, 79.4189], type: 'beach', location: 'Tamil Nadu', description: 'Ghost town beach at the southeastern tip of India.', highlights: ['Ghost town ruins', 'Ram Setu point'], bestTime: 'October to March', icon: '🏚️' },
+            'gokarna-beaches': { name: 'Gokarna Beaches', coords: [14.5497, 74.3188], type: 'beach', location: 'Gokarna, Karnataka', description: 'A pilgrimage town also known for its pristine and relatively secluded beaches.', highlights: ['Om Beach, Kudle Beach', 'Mahabaleshwar Temple'], bestTime: 'October to March', icon: '🧘' },
+            'alappuzha-beach': { name: 'Alappuzha Beach (Alleppey)', coords: [9.4975, 76.3262], type: 'beach', location: 'Alappuzha, Kerala', description: 'Famous for its backwaters, houseboats, and a beautiful beach with a pier.', highlights: ['Backwater cruises', 'Lighthouse'], bestTime: 'October to May', icon: ' houseboat' },
+            'puri-beach': { name: 'Puri Beach', coords: [19.7997, 85.8507], type: 'beach', location: 'Puri, Odisha', description: 'A popular beach on the Bay of Bengal, known for its religious significance and sand art.', highlights: ['Proximity to Jagannath Temple', 'Golden sand'], bestTime: 'October to March', icon: '🏖️' },
+            'red-fort': { name: 'Red Fort', coords: [28.6562, 77.2410], type: 'monument', location: 'Delhi', description: 'Historic fortified palace of Mughal emperors.', highlights: ['UNESCO World Heritage Site', 'Independence Day venue'], bestTime: 'October to March', icon: '🏰' },
+            'qutub-minar': { name: 'Qutub Minar', coords: [28.5245, 77.1855], type: 'monument', location: 'Delhi', description: 'Tallest brick minaret in the world.', highlights: ['UNESCO World Heritage Site', 'Tallest brick minaret'], bestTime: 'October to March', icon: '🗼' },
+            'khajuraho-temples': { name: 'Khajuraho Temples', coords: [24.8318, 79.9199], type: 'monument', location: 'Madhya Pradesh', description: 'Famous temples with intricate erotic sculptures.', highlights: ['UNESCO World Heritage Site', 'Intricate stone carvings'], bestTime: 'October to March', icon: '🕉️' },
+            'ajanta-caves': { name: 'Ajanta Caves', coords: [20.5519, 75.7033], type: 'monument', location: 'Maharashtra', description: 'Ancient Buddhist rock-cut caves with exquisite paintings.', highlights: ['UNESCO World Heritage Site', 'Ancient Buddhist art'], bestTime: 'October to March', icon: '🖼️' },
+            'ellora-caves': { name: 'Ellora Caves', coords: [20.0267, 75.1791], type: 'monument', location: 'Maharashtra', description: 'Multi-religious rock-cut caves showcasing Hindu, Buddhist, and Jain art.', highlights: ['UNESCO World Heritage Site', 'Multi-religious caves'], bestTime: 'October to March', icon: '⛩️' },
+            'hampi-monuments': { name: 'Hampi', coords: [15.3350, 76.4600], type: 'monument', location: 'Karnataka', description: 'Ruins of the Vijayanagara Empire with stunning architecture.', highlights: ['UNESCO World Heritage Site', 'Vijayanagara Empire ruins'], bestTime: 'October to March', icon: '🏛️' },
+            'mysore-palace': { name: 'Mysore Palace', coords: [12.3052, 76.6547], type: 'monument', location: 'Mysore, Karnataka', description: 'The official residence and seat of the Wadiyar dynasty, known for its Indo-Saracenic architecture.', highlights: ['Indo-Saracenic architecture', 'Dussehra celebrations'], bestTime: 'October to March', icon: '👑' },
+            'golconda-fort': { name: 'Golconda Fort', coords: [17.3828, 78.4019], type: 'monument', location: 'Hyderabad, Telangana', description: 'Historic fort and a former diamond mining center, famous for its acoustics.', highlights: ['Famous for its acoustics', 'Sound and Light Show'], bestTime: 'October to March', icon: '🛡️' },
+            'charminar': { name: 'Charminar', coords: [17.3616, 78.4747], type: 'monument', location: 'Hyderabad, Telangana', description: 'A monument and mosque located in Hyderabad, iconic landmark of the city.', highlights: ['Iconic landmark of Hyderabad', 'Four minarets'], bestTime: 'October to March', icon: '🗼' },
+            'gateway-of-india': { name: 'Gateway of India', coords: [18.9219, 72.8347], type: 'monument', location: 'Mumbai, Maharashtra', description: 'An iconic arch monument built to commemorate the landing of King George V and Queen Mary in Mumbai.', highlights: ['Architectural landmark', 'Overlooks Arabian Sea'], bestTime: 'November to March', icon: '🌉' },
+            'elephanta-caves': { name: 'Elephanta Caves', coords: [18.9634, 72.9329], type: 'monument', location: 'Mumbai, Maharashtra', description: 'A UNESCO World Heritage Site, a collection of cave temples predominantly dedicated to the Hindu god Shiva.', highlights: ['UNESCO World Heritage Site', 'Rock-cut cave temples'], bestTime: 'November to March', icon: '🗿' },
+            'amer-fort': { name: 'Amer Fort', coords: [26.9859, 75.8513], type: 'monument', location: 'Jaipur, Rajasthan', description: 'A magnificent fort known for its artistic Hindu style elements and stunning views.', highlights: ['UNESCO World Heritage Site', 'Elephant rides'], bestTime: 'October to March', icon: '🏰' },
+            'jaisalmer-fort': { name: 'Jaisalmer Fort', coords: [26.9124, 70.9169], type: 'monument', location: 'Jaisalmer, Rajasthan', description: 'One of the very few "living forts" in the world, built from yellow sandstone, giving it a golden hue.', highlights: ['Living Fort', 'Yellow sandstone architecture'], bestTime: 'October to March', icon: '🏜️' },
+            'valley-of-flowers': { name: 'Valley of Flowers National Park', coords: [30.7107, 79.5973], type: 'wildlife', location: 'Chamoli, Uttarakhand', description: 'A vibrant national park known for its meadows of endemic alpine flowers and diverse fauna.', highlights: ['UNESCO World Heritage Site', 'Alpine flowers'], bestTime: 'July to September', icon: '🌺' },
+            'jim-corbett-national-park': { name: 'Jim Corbett National Park', coords: [29.5317, 78.9468], type: 'wildlife', location: 'Uttarakhand', description: 'India\'s oldest national park, famous for Bengal tigers.', highlights: ['First national park in India', 'Bengal tiger reserve'], bestTime: 'November to June', icon: '🐅' },
+            'ranthambore-national-park': { name: 'Ranthambore National Park', coords: [26.0173, 76.5026], type: 'wildlife', location: 'Rajasthan', description: 'One of the best places to see tigers in their natural habitat.', highlights: ['Tiger photography', 'Safari experiences'], bestTime: 'October to April', icon: '🐆' },
+            'kaziranga-national-park': { name: 'Kaziranga National Park', coords: [26.5775, 93.1717], type: 'wildlife', location: 'Assam', description: 'Home to two-thirds of the world\'s great one-horned rhinoceros.', highlights: ['One-horned rhinoceros', 'UNESCO World Heritage Site'], bestTime: 'November to April', icon: '🦏' },
+            'sundarbans-national-park': { name: 'Sundarbans National Park', coords: [21.9497, 88.4019], type: 'wildlife', location: 'West Bengal', description: 'Largest mangrove forest and home to Royal Bengal tigers.', highlights: ['Royal Bengal tigers', 'Mangrove forests'], bestTime: 'September to March', icon: '🌿' },
+            'periyar-national-park': { name: 'Periyar National Park', coords: [9.4606, 77.2411], type: 'wildlife', location: 'Kerala', description: 'Tiger reserve known for its artificial lake and spice plantations.', highlights: ['Tiger and elephant reserve', 'Periyar Lake'], bestTime: 'October to June', icon: '🐘' },
+            'nagarhole-national-park': { name: 'Nagarhole National Park (Rajiv Gandhi NP)', coords: [12.1500, 76.1000], type: 'wildlife', location: 'Kodagu and Mysore, Karnataka', description: 'A critical tiger habitat with rich forest cover, small streams, hills, valleys and waterfalls.', highlights: ['Tiger, elephant, leopard spotting', 'Kabini River backwaters'], bestTime: 'October to May', icon: '🦌' },
+            'eravikulam-national-park': { name: 'Eravikulam National Park', coords: [10.1742, 77.0163], type: 'wildlife', location: 'Munnar, Kerala', description: 'Home to the endangered Nilgiri Tahr and stunning grasslands.', highlights: ['Endangered Nilgiri Tahr', 'Anamudi Peak'], bestTime: 'September to March', icon: '🐐' },
+            'jog-falls': { name: 'Jog Falls', coords: [14.2292, 74.8099], type: 'waterfall', location: 'Karnataka', description: 'Second highest plunge waterfall in India, formed by Sharavathi River.', highlights: ['Second highest waterfall', 'Monsoon spectacle'], bestTime: 'August to January', icon: '💧' },
+            'dudhsagar-falls': { name: 'Dudhsagar Falls', coords: [15.3144, 74.3144], type: 'waterfall', location: 'Goa-Karnataka Border', description: 'Four-tiered waterfall meaning "Sea of Milk" in Konkani.', highlights: ['Four-tiered cascade', 'Railway track crossing'], bestTime: 'October to March', icon: '🌊' },
+            'athirappilly-falls': { name: 'Athirappilly Falls', coords: [10.2851, 76.5694], type: 'waterfall', location: 'Kerala', description: 'Known as the "Niagara of India", largest waterfall in Kerala.', highlights: ['Niagara of India', 'Largest waterfall in Kerala'], bestTime: 'June to September', icon: '🌿' },
+            'nohkalikai-falls': { name: 'Nohkalikai Falls', coords: [25.2959, 91.7081], type: 'waterfall', location: 'Cherrapunji, Meghalaya', description: 'Tallest plunge waterfall in India, surrounded by lush green forests.', highlights: ['Tallest waterfall in India', 'Tragic legend'], bestTime: 'October to March', icon: '🌧️' },
+            'elephant-falls': { name: 'Elephant Falls', coords: [25.3172, 91.8933], type: 'waterfall', location: 'Shillong, Meghalaya', description: 'Three-tiered waterfall named after an elephant-shaped rock.', highlights: ['Three-tiered cascade', 'Elephant-shaped rock'], bestTime: 'October to June', icon: '🐘' },
+            'hogenakkal-falls': { name: 'Hogenakkal Falls', coords: [12.1194, 77.7756], type: 'waterfall', location: 'Tamil Nadu', description: 'Niagara of India on the Kaveri River.', highlights: ['Niagara of India', 'Coracle boat rides'], bestTime: 'June to October', icon: '🚣' },
+            'courtallam-falls': { name: 'Courtallam Falls', coords: [8.9312, 77.2847], type: 'waterfall', location: 'Tamil Nadu', description: 'Spa of South India with medicinal properties.', highlights: ['Medicinal waters', 'Multiple falls'], bestTime: 'June to September', icon: '💊' },
+            'shimla-hill-station': { name: 'Shimla', coords: [31.1048, 77.1734], type: 'hill-station', location: 'Himachal Pradesh', description: 'Former summer capital of British India, known for its Victorian architecture.', highlights: ['Toy Train UNESCO World Heritage', 'Mall Road shopping'], bestTime: 'March to June, September to November', icon: '🏔️' },
+            'manali-hill-station': { name: 'Manali', coords: [32.2396, 77.1887], type: 'hill-station', location: 'Himachal Pradesh', description: 'Popular hill station known for adventure sports and scenic beauty.', highlights: ['Rohtang Pass', 'Solang Valley'], bestTime: 'October to February', icon: '🎿' },
+            'darjeeling-hill-station': { name: 'Darjeeling', coords: [27.0360, 88.2627], type: 'hill-station', location: 'West Bengal', description: 'Queen of Hills, famous for tea gardens and Himalayan views.', highlights: ['World-famous tea gardens', 'Toy train heritage railway'], bestTime: 'April to June, September to November', icon: '🚂' },
+            'ooty-hill-station': { name: 'Ooty', coords: [11.4064, 76.6932], type: 'hill-station', location: 'Tamil Nadu', description: 'Queen of Hill Stations in the Nilgiri Hills.', highlights: ['Nilgiri Mountain Railway', 'Botanical gardens'], bestTime: 'April to June, September to November', icon: '🌹' },
+            'munnar-hill-station': { name: 'Munnar', coords: [10.0889, 77.0595], type: 'hill-station', location: 'Kerala', description: 'Hill station famous for tea plantations and wildlife.', highlights: ['Tea plantations', 'Eravikulam National Park'], bestTime: 'September to March', icon: '🍃' },
+            'kodaikanal-hill-station': { name: 'Kodaikanal', coords: [10.2381, 77.4892], type: 'hill-station', location: 'Tamil Nadu', description: 'Princess of Hill Stations with serene lakes and valleys.', highlights: ['Kodai Lake', 'Coaker\'s Walk'], bestTime: 'April to June, September to October', icon: '🌲' },
+            'nainital-hill-station': { name: 'Nainital', coords: [29.3803, 79.4636], type: 'hill-station', location: 'Uttarakhand', description: 'Lake District of India with beautiful Naini Lake.', highlights: ['Naini Lake', 'Snow View Point'], bestTime: 'March to June, September to November', icon: '🏔️' },
+            'mount-abu-hill-station': { name: 'Mount Abu', coords: [24.5925, 72.7156], type: 'hill-station', location: 'Rajasthan', description: 'Only hill station in Rajasthan with Dilwara Jain temples.', highlights: ['Dilwara Jain Temples', 'Nakki Lake'], bestTime: 'November to March', icon: '🏜️' },
+            'coorg-hill-station': { name: 'Coorg (Kodagu)', coords: [12.3394, 75.8066], type: 'hill-station', location: 'Karnataka', description: 'The "Scotland of India" known for its coffee plantations, misty hills, and lush forests.', highlights: ['Coffee plantations', 'Abbey Falls'], bestTime: 'October to March', icon: '☕' },
+            'vagamon-hill-station': { name: 'Vagamon', coords: [9.6898, 76.9023], type: 'hill-station', location: 'Kerala', description: 'A serene hill station with lush meadows, pine forests, and cascading waterfalls.', highlights: ['Vagamon Meadows', 'Pine forests'], bestTime: 'March to May, September to November', icon: '⛰️' },
+            'yercaud-hill-station': { name: 'Yercaud', coords: [11.7770, 78.2096], type: 'hill-station', location: 'Tamil Nadu', description: 'A less-crowded hill station in the Shevaroy Hills, known for its coffee and spice plantations.', highlights: ['Yercaud Lake', 'Lady\'s Seat viewpoint'], bestTime: 'October to June', icon: '🌿' },
+            'araku-valley-hill-station': { name: 'Araku Valley', coords: [18.3229, 82.8710], type: 'hill-station', location: 'Andhra Pradesh', description: 'A beautiful valley known for its coffee plantations and tribal culture.', highlights: ['Coffee plantations', 'Tribal Museum'], bestTime: 'September to March', icon: '🏞️' },
+            'goa-beaches': { name: 'Goa Beaches', coords: [15.2993, 74.1240], type: 'beach', location: 'Goa', description: 'Famous beaches with golden sand, water sports, and vibrant nightlife.', highlights: ['Beautiful beaches', 'Portuguese heritage'], bestTime: 'November to February', icon: '🏖️' },
+            'varkala-beach': { name: 'Varkala Beach', coords: [8.7334, 76.7156], type: 'beach', location: 'Kerala', description: 'Unique cliff beach with natural springs and ancient temples.', highlights: ['Cliff-top beach', 'Natural springs'], bestTime: 'October to March', icon: '🌅' },
+            'marina-beach': { name: 'Marina Beach', coords: [13.0475, 80.2824], type: 'beach', location: 'Chennai, Tamil Nadu', description: 'One of the longest urban beaches in the world.', highlights: ['Longest urban beach', 'Evening strolls'], bestTime: 'November to February', icon: '🏙️' },
+            'radhanagar-beach': { name: 'Radhanagar Beach', coords: [11.9421, 92.9576], type: 'beach', location: 'Andaman Islands', description: 'Pristine white sand beach rated as one of Asia\'s best.', highlights: ['White sand beach', 'Crystal clear waters'], bestTime: 'November to April', icon: '🐚' },
+            'visakhapatnam-rishikonda-beach': { name: 'Rishikonda Beach', coords: [17.7797, 83.3768], type: 'beach', location: 'Visakhapatnam, Andhra Pradesh', description: 'A pristine beach known for its golden sands and water sports activities.', highlights: ['Golden sands', 'Water sports'], bestTime: 'October to March', icon: '🏖️' },
+            'visakhapatnam-ramakrishna-beach': { name: 'Ramakrishna Beach', coords: [17.7011, 83.3210], type: 'beach', location: 'Visakhapatnam, Andhra Pradesh', description: 'Popular city beach with Submarine Museum and Visakha Museum nearby.', highlights: ['Submarine Museum', 'City beach'], bestTime: 'October to March', icon: '🏖️' },
+            'kakinada-beach': { name: 'Kakinada Beach', coords: [16.9691, 82.2619], type: 'beach', location: 'Kakinada, Andhra Pradesh', description: 'Scenic beach with a lighthouse and a pier, popular for its calm waters.', highlights: ['Lighthouse', 'Calm waters'], bestTime: 'October to March', icon: '🏖️' },
+            'chirala-beach': { name: 'Chirala Beach', coords: [15.8206, 80.3708], type: 'beach', location: 'Prakasam, Andhra Pradesh', description: 'Long coastline with casuarina plantations, popular for relaxation.', highlights: ['Long coastline', 'Relaxation'], bestTime: 'October to March', icon: '🏖️' },
+            'kizhunna-eazhara-beach': { name: 'Kizhunna Eazhara Beach', coords: [11.9167, 75.4667], type: 'beach', location: 'Kannur, Kerala (near TN)', description: 'Secluded twin beaches, ideal for quiet holidays.', highlights: ['Secluded beaches', 'Quiet holidays'], bestTime: 'September to March', icon: '🏖️' },
+            'manginapudi-beach': { name: 'Manginapudi Beach', coords: [16.1437, 81.1614], type: 'beach', location: 'Machilipatnam, Andhra Pradesh', description: 'Black sand beach known for its historical port and healing properties.', highlights: ['Black sand', 'Historical port'], bestTime: 'October to March', icon: '🏖️' },
+            'bheemunipatnam-beach': { name: 'Bheemunipatnam Beach', coords: [17.9351, 83.4357], type: 'beach', location: 'Visakhapatnam, Andhra Pradesh', description: 'Historic beach town with Dutch and Buddhist remnants.', highlights: ['Dutch remnants', 'Historic town'], bestTime: 'October to March', icon: '🏖️' },
+            'muttukadu-boathouse': { name: 'Muttukadu Boathouse', coords: [12.7842, 80.2263], type: 'beach', location: 'Chennai, Tamil Nadu', description: 'A backwater area offering boating and windsurfing.', highlights: ['Boating', 'Windsurfing'], bestTime: 'October to March', icon: '🚣' },
+            'covelong-beach': { name: 'Covelong Beach', coords: [12.7711, 80.2270], type: 'beach', location: 'Chennai, Tamil Nadu', description: 'Former Dutch port village now a fishing village with a quiet beach.', highlights: ['Fishing village', 'Quiet beach'], bestTime: 'November to February', icon: '🏖️' },
+            'pondicherry-paradise-beach': { name: 'Paradise Beach (Chunnambar)', coords: [11.8906, 79.8329], type: 'beach', location: 'Puducherry (near Tamil Nadu)', description: 'An isolated beach accessible by ferry, known for its golden sand.', highlights: ['Isolated beach', 'Ferry access'], bestTime: 'October to March', icon: '🏖️' },
+            'tuticorin-pearl-city-beach': { name: 'Pearl City Beach', coords: [8.8049, 78.1408], type: 'beach', location: 'Thoothukudi, Tamil Nadu', description: 'A city beach with a view of the harbor and wind farms.', highlights: ['Harbor view', 'Wind farms'], bestTime: 'October to March', icon: '🏖️' },
+            'rameshwaram-agni-teertham': { name: 'Agni Teertham', coords: [9.2881, 79.3175], type: 'temple', location: 'Rameswaram, Tamil Nadu', description: 'Sacred bathing ghat located on the east side of Ramanathaswamy Temple.', highlights: ['Sacred bathing', 'Ramanathaswamy Temple'], bestTime: 'All year', icon: '🌊' },
+            'kanyakumari-sunrise-sunset-point': { name: 'Sunrise and Sunset Point', coords: [8.0883, 77.5593], type: 'beach', location: 'Kanyakumari, Tamil Nadu', description: 'The unique confluence point of Arabian Sea, Bay of Bengal, and Indian Ocean, offering spectacular sunrise and sunset views.', highlights: ['Triveni Sangam', 'Spectacular views'], bestTime: 'October to March', icon: '🌅' },
+            'mahishadal-rajbari': { name: 'Mahishadal Rajbari', coords: [21.7820, 87.8930], type: 'monument', location: 'East Medinipur, West Bengal', description: 'Historic palace reflecting rich Bengali architecture and heritage.', highlights: ['Bengali architecture', 'Historical palace'], bestTime: 'October to March', icon: '🏰' },
+            'fort-st-george': { name: 'Fort St. George', coords: [13.0811, 80.2854], type: 'monument', location: 'Chennai, Tamil Nadu', description: 'First English fortress in India, housing the Tamil Nadu Legislative Assembly.', highlights: ['First English fortress', 'Legislative Assembly'], bestTime: 'October to March', icon: '🏰' },
+            'san-thome-basilica': { name: 'San Thome Basilica', coords: [13.0277, 80.2829], type: 'temple', location: 'Chennai, Tamil Nadu', description: 'A Roman Catholic minor basilica built over the tomb of St. Thomas the Apostle.', highlights: ['St. Thomas tomb', 'Neo-Gothic architecture'], bestTime: 'All year', icon: '⛪' },
+            'dakshinchitra': { name: 'DakshinaChitra', coords: [12.7840, 80.2220], type: 'monument', location: 'ECR, Chennai, Tamil Nadu', description: 'A living history museum of South Indian culture and traditions.', highlights: ['Living history museum', 'South Indian culture'], bestTime: 'All year', icon: '🖼️' },
+            'arignar-anna-zoological-park': { name: 'Arignar Anna Zoological Park (Vandalur Zoo)', coords: [12.8799, 80.0800], type: 'wildlife', location: 'Chennai, Tamil Nadu', description: 'One of the largest zoological parks in South Asia.', highlights: ['Largest zoo', 'Wildlife conservation'], bestTime: 'All year', icon: '🐅' },
+            'pulicat-lake-bird-sanctuary-tn': { name: 'Pulicat Lake (Tamil Nadu side)', coords: [13.7196, 80.1983], type: 'wildlife', location: 'Thiruvallur, Tamil Nadu', description: 'Southern part of the lake known for migratory birds.', highlights: ['Migratory Birds', 'Bird Watching'], bestTime: 'October to March', icon: '🦢' },
+            'massanagudi': { name: 'Masinagudi', coords: [11.5500, 76.6000], type: 'wildlife', location: 'Nilgiris, Tamil Nadu', description: 'A peaceful village near Mudumalai, known for wildlife spotting.', highlights: ['Wildlife spotting', 'Peaceful retreat'], bestTime: 'October to May', icon: '🦌' },
+            'talakona-waterfall': { name: 'Talakona Waterfall', coords: [13.8267, 79.2084], type: 'waterfall', location: 'Chittoor, Andhra Pradesh', description: 'Highest waterfall in Andhra Pradesh, located in Sri Venkateswara National Park.', highlights: ['Highest waterfall in AP', 'National Park'], bestTime: 'October to January', icon: '💧' },
+            'gandikota-fort': { name: 'Gandikota Fort', coords: [14.7800, 78.2700], type: 'monument', location: 'Kadapa, Andhra Pradesh', description: 'Known as the "Grand Canyon of India" due to its dramatic gorge formed by the Pennar River.', highlights: ['Grand Canyon of India', 'Pennar River Gorge'], bestTime: 'October to March', icon: '⛰️' },
+            'ornithological-park-rollapadu': { name: 'Rollapadu Wildlife Sanctuary', coords: [15.6500, 78.4333], type: 'wildlife', location: 'Kurnool, Andhra Pradesh', description: 'Only habitat in Andhra Pradesh for the Great Indian Bustard.', highlights: ['Great Indian Bustard', 'Bird Sanctuary'], bestTime: 'October to March', icon: '🦅' },
+            'kolleru-lake': { name: 'Kolleru Lake Bird Sanctuary', coords: [16.6800, 81.2000], type: 'wildlife', location: 'Krishna & West Godavari, Andhra Pradesh', description: 'One of the largest freshwater lakes in India, important Ramsar site for birds.', highlights: ['Freshwater lake', 'Ramsar site'], bestTime: 'October to March', icon: '🦢' },
+            'sri-venkateswara-zoological-park': { name: 'Sri Venkateswara Zoological Park', coords: [13.6262, 79.4005], type: 'wildlife', location: 'Tirupati, Andhra Pradesh', description: 'Large zoo housing various animals and birds.', highlights: ['Zoo', 'Wildlife'], bestTime: 'All year', icon: '🐒' },
+            'rajiv-gandhi-zoological-park': { name: 'Rajiv Gandhi Zoological Park', coords: [18.9950, 78.2800], type: 'wildlife', location: 'Hyderabad, Telangana', description: 'A large zoological park in Hyderabad.', highlights: ['Zoo', 'Wildlife'], bestTime: 'All year', icon: '🐅' },
+            'neelagiri-nilgiris': { name: 'Nilgiri Hills', coords: [11.4064, 76.6932], type: 'hill-station', location: 'Tamil Nadu', description: 'Part of the Western Ghats, famous for tea plantations and scenic beauty.', highlights: ['Tea plantations', 'Scenic beauty'], bestTime: 'All year', icon: '⛰️' },
+            'elagiri-hill-station': { name: 'Elagiri Hills', coords: [12.5700, 78.6300], type: 'hill-station', location: 'Vellore, Tamil Nadu', description: 'A small hill station popular for trekking, paragliding, and nature camps.', highlights: ['Trekking', 'Paragliding'], bestTime: 'November to February', icon: '⛰️' },
+            'coimbatore-monkey-falls': { name: 'Monkey Falls', coords: [10.4282, 76.9945], type: 'waterfall', location: 'Coimbatore, Tamil Nadu', description: 'Natural waterfall near Aliyar Dam and Pollachi.', highlights: ['Natural waterfall', 'Near Aliyar Dam'], bestTime: 'Monsoon', icon: '💧' },
+            'meghamalai-hill-station': { name: 'Meghamalai (High Wavy Mountains)', coords: [9.6700, 77.3800], type: 'hill-station', location: 'Theni, Tamil Nadu', description: 'An unexplored paradise with tea and coffee estates, and rich wildlife.', highlights: ['Unexplored paradise', 'Tea estates'], bestTime: 'October to May', icon: '🌲' },
+            'chennai-mgm-dizzee-world': { name: 'MGM Dizzee World', coords: [12.7884, 80.2230], type: 'monument', location: 'ECR, Chennai, Tamil Nadu', description: 'Popular amusement park with rides and attractions.', highlights: ['Amusement park', 'Rides'], bestTime: 'All year', icon: '🎡' },
+            'chennai-kishkinta': { name: 'Kishkinta Theme Park', coords: [12.9200, 80.0800], type: 'monument', location: 'Tambaram, Chennai, Tamil Nadu', description: 'Another popular theme park with water rides and dry rides.', highlights: ['Theme park', 'Water rides'], bestTime: 'All year', icon: '🎢' },
+            'chennai-govt-museum': { name: 'Government Museum, Chennai', coords: [13.0673, 80.2600], type: 'monument', location: 'Egmore, Chennai, Tamil Nadu', description: 'Second oldest museum in India, with a rich collection of art and archaeological artifacts.', highlights: ['Second oldest museum', 'Art and archaeology'], bestTime: 'All year', icon: '🏛️' },
+            'chennai-mylapore-kapaleeshwarar-temple': { name: 'Kapaleeshwarar Temple', coords: [13.0336, 80.2709], type: 'temple', location: 'Mylapore, Chennai, Tamil Nadu', description: 'Ancient Shiva temple, magnificent example of Dravidian architecture.', highlights: ['Shiva Temple', 'Dravidian architecture'], bestTime: 'All year', icon: '🛕' },
+            'chennai-parthasarathy-temple': { name: 'Parthasarathy Temple', coords: [13.0560, 80.2798], type: 'temple', location: 'Triplicane, Chennai, Tamil Nadu', description: 'One of the oldest temples in Chennai, dedicated to Lord Krishna.', highlights: ['Lord Krishna Temple', 'Oldest temple'], bestTime: 'All year', icon: '🛕' },
+            'kovilpatti-kalugumalai-jain-beds': { name: 'Kalugumalai Jain Beds & Vettuvan Koil', coords: [9.1670, 77.8100], type: 'monument', location: 'Thoothukudi, Tamil Nadu', description: 'Rock-cut Jain beds and a monolithic rock-cut temple.', highlights: ['Jain heritage', 'Monolithic temple'], bestTime: 'October to March', icon: '🗿' },
+            'gangaikondacholapuram-temple': { name: 'Gangaikondacholapuram Temple', coords: [11.1963, 79.4443], type: 'monument', location: 'Ariyalur, Tamil Nadu', description: 'A magnificent Chola temple built by Rajendra Chola I, a UNESCO World Heritage site.', highlights: ['Chola architecture', 'UNESCO World Heritage'], bestTime: 'October to March', icon: '🏛️' },
+            'dindigul-rock-fort': { name: 'Dindigul Rock Fort', coords: [10.3683, 77.9780], type: 'monument', location: 'Dindigul, Tamil Nadu', description: 'Historic rock fort offering panoramic views of the city.', highlights: ['Rock Fort', 'Panoramic views'], bestTime: 'October to March', icon: '🏰' },
+            'sivaganga-cheyyar-river': { name: 'Cheyyar River', coords: [12.7200, 79.4800], type: 'waterfall', location: 'Thiruvannamalai, Tamil Nadu', description: 'Seasonal river with scenic spots, though not a major waterfall.', highlights: ['Seasonal river', 'Scenic spots'], bestTime: 'Monsoon', icon: '🌿' },
+            'kanyakumari-mathur-aqueduct': { name: 'Mathur Aqueduct', coords: [8.3072, 77.2600], type: 'monument', location: 'Kanyakumari, Tamil Nadu', description: 'Longest and tallest aqueduct in South Asia, built for agricultural purposes.', highlights: ['Longest aqueduct', 'Engineering marvel'], bestTime: 'All year', icon: '🌉' },
+            'krishnagiri-dam': { name: 'Krishnagiri Dam', coords: [12.5690, 78.2250], type: 'waterfall', location: 'Krishnagiri, Tamil Nadu', description: 'A popular picnic spot with a park and boating facilities near the dam.', highlights: ['Picnic spot', 'Boating'], bestTime: 'Monsoon', icon: '💧' },
+            'hogenakkal-coracle-ride': { name: 'Hogenakkal Coracle Ride', coords: [12.1194, 77.7756], type: 'waterfall', location: 'Dharmapuri, Tamil Nadu', description: 'Unique coracle boat rides offered at the base of Hogenakkal Falls.', highlights: ['Coracle ride', 'Natural massage'], bestTime: 'June to October', icon: '🚣' },
+            'pulicat-lake-houseboats': { name: 'Pulicat Lake Houseboats', coords: [13.7196, 80.1983], type: 'beach', location: 'Pulicat, Tamil Nadu', description: 'Houseboat experiences are sometimes available on the Tamil Nadu side of the lake.', highlights: ['Houseboat experience', 'Lake views'], bestTime: 'October to March', icon: ' houseboat' },
+            'sathyamangalam-tiger-reserve': { name: 'Sathyamangalam Tiger Reserve', coords: [11.4900, 77.1900], type: 'wildlife', location: 'Erode, Tamil Nadu', description: 'Largest wildlife sanctuary in Tamil Nadu, significant tiger population.', highlights: ['Largest sanctuary', 'Tiger population'], bestTime: 'October to March', icon: '🐅' },
+            'kanyakumari-gandhi-mandapam': { name: 'Gandhi Mandapam', coords: [8.0883, 77.5593], type: 'monument', location: 'Kanyakumari, Tamil Nadu', description: 'Memorial where the Mahatma Gandhi\'s ashes were kept before immersion.', highlights: ['Gandhi memorial', 'Sea views'], bestTime: 'All year', icon: '🏛️' },
+            'rameshwaram-dr-apj-abdul-kalam-memorial': { name: 'Dr. APJ Abdul Kalam Memorial', coords: [9.2730, 79.2880], type: 'monument', location: 'Rameswaram, Tamil Nadu', description: 'Memorial dedicated to the former President of India, Dr. A.P.J. Abdul Kalam.', highlights: ['President Kalam', 'Architectural tribute'], bestTime: 'All year', icon: '🏛️' },
+            'madurai-alai-vaniyapatti-temple': { name: 'Alai Vaniyapatti Temple', coords: [9.9070, 78.1180], type: 'temple', location: 'Madurai, Tamil Nadu', description: 'Local temple in Madurai, reflecting regional religious practices.', highlights: ['Local temple', 'Religious practices'], bestTime: 'All year', icon: '🛕' },
+            'vellore-fort': { name: 'Vellore Fort', coords: [12.9242, 79.1302], type: 'monument', location: 'Vellore, Tamil Nadu', description: 'A large 16th-century fort, noted for its grand ramparts, wide moat, and masonry.', highlights: ['16th-century fort', 'Grand ramparts'], bestTime: 'October to March', icon: '🏰' },
+            'gingee-fort': { name: 'Gingee Fort', coords: [12.4430, 79.4140], type: 'monument', location: 'Villupuram, Tamil Nadu', description: 'One of the few surviving forts in Tamil Nadu, dubbed the "Troy of the East".', highlights: ['Troy of the East', 'Three hillocks'], bestTime: 'October to March', icon: '🏰' },
+            'puducherry-auroville': { name: 'Auroville', coords: [12.0000, 79.8000], type: 'monument', location: 'Puducherry (near Tamil Nadu)', description: 'An experimental township dedicated to human unity and sustainable living.', highlights: ['Human unity', 'Matrimandir'], bestTime: 'November to March', icon: '🕊️' },
+            'thanjavur-palace': { name: 'Thanjavur Maratha Palace', coords: [10.7930, 79.1320], type: 'monument', location: 'Thanjavur, Tamil Nadu', description: 'Historic palace of the Thanjavur Maratha rulers, with a library and art gallery.', highlights: ['Maratha rulers', 'Art gallery'], bestTime: 'October to March', icon: '👑' },
+            'tranquebar-dansk-borg': { name: 'Danskborg Fort (Tharangambadi)', coords: [11.2640, 79.8540], type: 'monument', location: 'Nagapattinam, Tamil Nadu', description: 'A 17th-century Danish fort, now a museum.', highlights: ['Danish fort', 'Museum'], bestTime: 'October to March', icon: '🏰' },
+            'chettinad-mansions': { name: 'Chettinad Mansions', coords: [10.1500, 78.8000], type: 'monument', location: 'Sivaganga, Tamil Nadu', description: 'Grand ancestral homes of the Chettiar community, known for their unique architecture.', highlights: ['Unique architecture', 'Chettiar heritage'], bestTime: 'October to March', icon: '🏘️' },
+            'kanyakumari-padmanabhapuram-palace': { name: 'Padmanabhapuram Palace', coords: [8.2600, 77.3300], type: 'monument', location: 'Kanyakumari, Tamil Nadu', description: 'Historic wooden palace, former residence of Travancore rulers.', highlights: ['Wooden palace', 'Travancore rulers'], bestTime: 'October to March', icon: '👑' },
+            'nagercoil-nagaraja-temple': { name: 'Nagaraja Temple', coords: [8.1800, 77.4200], type: 'temple', location: 'Nagercoil, Tamil Nadu', description: 'Unique temple dedicated to the Serpent God Nagaraja.', highlights: ['Serpent God', 'Unique temple'], bestTime: 'All year', icon: '🐍' },
+            'pondicherry-french-colony': { name: 'French Colony, Puducherry', coords: [11.9350, 79.8350], type: 'monument', location: 'Puducherry (near Tamil Nadu)', description: 'Charming streets with French colonial buildings, cafes, and boutiques.', highlights: ['French architecture', 'Charming streets'], bestTime: 'October to March', icon: '🏘️' },
+            'krishnagiri-rajaji-memorial': { name: 'Rajaji Memorial', coords: [12.5100, 78.0400], type: 'monument', location: 'Thiruchengode, Tamil Nadu', description: 'Memorial dedicated to C. Rajagopalachari, freedom fighter and first Governor-General of India.', highlights: ['Freedom fighter', 'Historic significance'], bestTime: 'All year', icon: '🏛️' },
+            'theni-vaigai-dam': { name: 'Vaigai Dam', coords: [9.8000, 77.5600], type: 'waterfall', location: 'Theni, Tamil Nadu', description: 'A large dam and a popular picnic spot with a beautiful garden.', highlights: ['Large dam', 'Picnic spot'], bestTime: 'Monsoon', icon: '💧' },
+            'chennai-dakshin-gangotri': { name: 'Dakshina Gangotri', coords: [13.0475, 80.2824], type: 'monument', location: 'Marina Beach, Chennai, Tamil Nadu', description: 'A memorial dedicated to the first Indian Antarctic expedition.', highlights: ['Antarctic expedition', 'Memorial'], bestTime: 'All year', icon: '❄️' },
+            'hyderabad-birla-mandir': { name: 'Birla Mandir, Hyderabad', coords: [17.4069, 78.4687], type: 'temple', location: 'Hyderabad, Telangana', description: 'A modern Hindu temple built on a hillock, offering panoramic views of the city.', highlights: ['Modern temple', 'Panoramic views'], bestTime: 'All year', icon: '🛕' },
+            'hyderabad-chowmahalla-palace': { name: 'Chowmahalla Palace', coords: [17.3599, 78.4735], type: 'monument', location: 'Hyderabad, Telangana', description: 'A palace of the Nizams of Hyderabad, known for its exquisite architecture and grandeur.', highlights: ['Nizams palace', 'Exquisite architecture'], bestTime: 'October to March', icon: '👑' },
+            'hyderabad-ramoji-film-city': { name: 'Ramoji Film City', coords: [17.2519, 78.6750], type: 'monument', location: 'Hyderabad, Telangana', description: 'World\'s largest integrated film studio complex and a popular tourism destination.', highlights: ['Largest film studio', 'Film sets'], bestTime: 'All year', icon: '🎬' },
+            'hyderabad-tank-bund': { name: 'Tank Bund', coords: [17.4082, 78.4788], type: 'monument', location: 'Hyderabad, Telangana', description: 'Promenade along Hussain Sagar Lake with statues of famous personalities.', highlights: ['Hussain Sagar Lake', 'Statues'], bestTime: 'All year', icon: '🚶' },
+            'hyderabad-laad-bazaar': { name: 'Laad Bazaar', coords: [17.3616, 78.4747], type: 'monument', location: 'Hyderabad, Telangana', description: 'Historic market adjacent to Charminar, famous for bangles and traditional wear.', highlights: ['Bangles market', 'Traditional wear'], bestTime: 'All year', icon: '🛍️' },
+            'hyderabad-salar-jung-museum': { name: 'Salar Jung Museum', coords: [17.3752, 78.4800], type: 'monument', location: 'Hyderabad, Telangana', description: 'One of the largest art museums in the world, with a vast collection of artifacts.', highlights: ['Largest art museum', 'Vast collection'], bestTime: 'All year', icon: '🖼️' },
+            'hyderabad-nehru-zoological-park': { name: 'Nehru Zoological Park', coords: [17.3370, 78.4550], type: 'wildlife', location: 'Hyderabad, Telangana', description: 'A large zoo with diverse animal species and safari tours.', highlights: ['Zoo', 'Safari tours'], bestTime: 'All year', icon: '🐅' },
+            'hyderabad-lumibini-park': { name: 'Lumbini Park', coords: [17.4050, 78.4780], type: 'beach', location: 'Hyderabad, Telangana', description: 'Urban park near Hussain Sagar Lake, with a laser show and boating.', highlights: ['Laser show', 'Boating'], bestTime: 'Evening', icon: '🎡' },
+            'warangal-fort': { name: 'Warangal Fort', coords: [17.9715, 79.5695], type: 'monument', location: 'Warangal, Telangana', description: 'Historic fort of the Kakatiya dynasty, known for its intricate stone arches.', highlights: ['Kakatiya dynasty', 'Stone arches'], bestTime: 'October to March', icon: '🏰' },
+            'nalgonda-nagarjuna-sagar-dam': { name: 'Nagarjuna Sagar Dam', coords: [16.5670, 79.2900], type: 'waterfall', location: 'Nalgonda, Telangana / Guntur, Andhra Pradesh', description: 'World\'s largest masonry dam, with a hydroelectric power plant.', highlights: ['Largest masonry dam', 'Hydroelectric power'], bestTime: 'October to March', icon: '💧' },
+            'medak-fort': { name: 'Medak Fort', coords: [18.0670, 78.2670], type: 'monument', location: 'Medak, Telangana', description: 'Historic fort with a mosque and a church within its premises.', highlights: ['Historic fort', 'Mosque and Church'], bestTime: 'October to March', icon: '🏰' },
+            'pakhal-lake': { name: 'Pakhal Lake', coords: [17.9304, 79.9485], type: 'waterfall', location: 'Warangal, Telangana', description: 'An artificial lake built by Kakatiya rulers, offering serene views and boating.', highlights: ['Artificial lake', 'Boating'], bestTime: 'October to March', icon: '🚣' },
+            'alakode-koovapara-falls': { name: 'Koovapara Falls', coords: [12.0125, 75.3000], type: 'waterfall', location: 'Kannur, Kerala (near TN)', description: 'A lesser-known beautiful waterfall in a tranquil setting.', highlights: ['Tranquil setting', 'Beautiful waterfall'], bestTime: 'Monsoon', icon: '💧' },
+            'visakhapatnam-kursura-submarine-museum': { name: 'INS Kursura Submarine Museum', coords: [17.7011, 83.3210], type: 'monument', location: 'Visakhapatnam, Andhra Pradesh', description: 'A decommissioned submarine converted into a museum on Ramakrishna Beach.', highlights: ['Submarine museum', 'Naval history'], bestTime: 'All year', icon: '🚢' },
+            'visakhapatnam-kailasagiri': { name: 'Kailasagiri', coords: [17.7470, 83.3440], type: 'hill-station', location: 'Visakhapatnam, Andhra Pradesh', description: 'A hilltop park offering panoramic views of the city and the Bay of Bengal.', highlights: ['Hilltop park', 'Panoramic views'], bestTime: 'All year', icon: '🏞️' },
+            'visakhapatnam-borra-caves': { name: 'Borra Caves', coords: [18.2710, 83.0450], type: 'monument', location: 'Visakhapatnam, Andhra Pradesh', description: 'Largest caves in India with stunning stalactite and stalagmite formations.', highlights: ['Largest caves', 'Formations'], bestTime: 'October to March', icon: '🦇' },
+            'visakhapatnam-dolphins-nose': { name: 'Dolphin\'s Nose', coords: [17.6534, 83.2750], type: 'beach', location: 'Visakhapatnam, Andhra Pradesh', description: 'A prominent rocky headland resembling a dolphin\'s nose, with a lighthouse.', highlights: ['Rocky headland', 'Lighthouse'], bestTime: 'All year', icon: '🌅' },
+            'nellore-krishnapatnam-port': { name: 'Krishnapatnam Port', coords: [14.2500, 80.1200], type: 'monument', location: 'Nellore, Andhra Pradesh', description: 'One of the largest private sector ports in India (industrial interest).', highlights: ['Private port', 'Industrial site'], bestTime: 'All year', icon: '⚓' },
+            'kurnool-onda-caves': { name: 'Onda Caves', coords: [15.8200, 78.0300], type: 'monument', location: 'Kurnool, Andhra Pradesh', description: 'Lesser known natural caves, offering a unique geological experience.', highlights: ['Natural caves', 'Geological interest'], bestTime: 'October to March', icon: '🦇' },
+            'guntur-amayala-satyagraha-ashram': { name: 'Amaravathi Buddhist Stupa', coords: [16.5866, 80.3667], type: 'monument', location: 'Guntur, Andhra Pradesh', description: 'Ancient Buddhist Stupa and Amaravathi Museum.', highlights: ['Buddhist Stupa', 'Museum'], bestTime: 'October to March', icon: '☸️' },
+            'ananthapur-prasannavenkateswara-swamy-temple': { name: 'Prasannavenkateswara Swamy Temple', coords: [14.6500, 77.5800], type: 'temple', location: 'Anantapur, Andhra Pradesh', description: 'Ancient Vishnu temple, known for its peaceful ambiance.', highlights: ['Ancient Vishnu temple', 'Peaceful ambiance'], bestTime: 'All year', icon: '🛕' },
+            'chikmagalur-mullayanagiri': { name: 'Mullayanagiri', coords: [13.4357, 75.7600], type: 'hill-station', location: 'Chikmagalur, Karnataka', description: 'Highest peak in Karnataka, popular for trekking and views.', highlights: ['Highest peak in Karnataka', 'Trekking'], bestTime: 'September to April', icon: '⛰️' },
+            'coorg-dubare-elephant-camp': { name: 'Dubare Elephant Camp', coords: [12.3800, 75.9800], type: 'wildlife', location: 'Coorg, Karnataka', description: 'Elephant training camp where visitors can interact with elephants.', highlights: ['Elephant interaction', 'Nature camp'], bestTime: 'October to May', icon: '🐘' },
+            'coorg-abbey-falls': { name: 'Abbey Falls', coords: [12.4320, 75.6900], type: 'waterfall', location: 'Coorg, Karnataka', description: 'Popular waterfall amidst coffee plantations and spice estates.', highlights: ['Coffee plantations', 'Scenic waterfall'], bestTime: 'Monsoon', icon: '💧' },
+            'karnataka-bandipur-national-park': { name: 'Bandipur National Park', coords: [11.6670, 76.6330], type: 'wildlife', location: 'Chamarajanagar, Karnataka', description: 'One of India\'s premier tiger reserves, part of Nilgiri Biosphere Reserve.', highlights: ['Tiger reserve', 'Nilgiri Biosphere'], bestTime: 'October to May', icon: '🐅' },
+            'karnataka-br-hills': { name: 'B.R. Hills (Biligirirangan Hills)', coords: [12.0800, 77.1200], type: 'hill-station', location: 'Chamarajanagar, Karnataka', description: 'A hill range that is a wildlife sanctuary and a tiger reserve.', highlights: ['Wildlife Sanctuary', 'Tiger Reserve'], bestTime: 'October to March', icon: '🌲' },
+            'karnataka-gaganachukki-barachukki-falls': { name: 'Gaganachukki and Barachukki Falls', coords: [12.3020, 77.1080], type: 'waterfall', location: 'Shivanasamudra, Karnataka', description: 'Twin waterfalls formed by the Kaveri River, known for their grandeur.', highlights: ['Twin waterfalls', 'Kaveri River'], bestTime: 'Monsoon', icon: '💧' },
+            'nellore-krishnapatnam-beach': { name: 'Krishnapatnam Beach', coords: [14.2500, 80.1200], type: 'beach', location: 'Nellore, Andhra Pradesh', description: 'A serene beach near the Krishnapatnam Port.', highlights: ['Serene beach', 'Port nearby'], bestTime: 'October to March', icon: '🏖️' },
+            'vizianagaram-bobbili-fort': { name: 'Bobbili Fort', coords: [18.5700, 83.4300], type: 'monument', location: 'Vizianagaram, Andhra Pradesh', description: 'Historic fort known for the Bobbili Battle.', highlights: ['Historic fort', 'Bobbili Battle'], bestTime: 'October to March', icon: '🏰' },
+            'east-godavari-papi-hills': { name: 'Papi Hills', coords: [17.5000, 81.3000], type: 'hill-station', location: 'East Godavari, Andhra Pradesh', description: 'Scenic hills with the Godavari River flowing through, popular for boat cruises.', highlights: ['Godavari River cruise', 'Scenic hills'], bestTime: 'October to March', icon: '🏞️' },
+            'tirupati-silathoranam': { name: 'Silathoranam', coords: [13.6826, 79.3474], type: 'monument', location: 'Tirupati, Andhra Pradesh', description: 'A natural rock formation, a geological wonder near Tirumala.', highlights: ['Natural rock arch', 'Geological wonder'], bestTime: 'All year', icon: '⛰️' },
+            'ananthapur-bugga-ramalingeswara-swamy-temple': { name: 'Bugga Ramalingeswara Swamy Temple', coords: [14.6800, 77.4200], type: 'temple', location: 'Anantapur, Andhra Pradesh', description: 'Ancient Shiva temple with a perennial spring (bugga) flowing from beneath the Shiva Lingam.', highlights: ['Perennial spring', 'Shiva Lingam'], bestTime: 'All year', icon: '🕉️' },
+            'vizianagaram-rama-tirtha-temple': { name: 'Rama Tirtha Temple', coords: [18.3000, 83.4200], type: 'temple', location: 'Vizianagaram, Andhra Pradesh', description: 'Ancient temple complex known for its Rama temple and Buddhist ruins.', highlights: ['Ancient temple', 'Buddhist ruins'], bestTime: 'October to March', icon: '🛕' },
+            'nalgonda-kolanupaka-jain-temple': { name: 'Kolanupaka Jain Temple', coords: [17.7000, 79.1200], type: 'temple', location: 'Nalgonda, Telangana', description: 'Ancient Jain temple, a major pilgrimage center for Jains.', highlights: ['Ancient Jain temple', 'Pilgrimage center'], bestTime: 'All year', icon: '🕉️' },
+            'medak-cathedral': { name: 'Medak Cathedral', coords: [18.0560, 78.2600], type: 'temple', location: 'Medak, Telangana', description: 'One of the largest churches in Asia and second largest in the world, known for its stained glass windows.', highlights: ['Largest churches in Asia', 'Stained glass'], bestTime: 'All year', icon: '⛪' },
+            'pochera-waterfall': { name: 'Pochera Waterfall', coords: [19.1600, 78.6900], type: 'waterfall', location: 'Adilabad, Telangana', description: 'A scenic waterfall known for its gentle cascade, ideal for family outings.', highlights: ['Gentle cascade', 'Family spot'], bestTime: 'Monsoon', icon: '💧' },
+            'kuntala-waterfall': { name: 'Kuntala Waterfall', coords: [19.2600, 78.6000], type: 'waterfall', location: 'Adilabad, Telangana', description: 'Tallest waterfall in Telangana, surrounded by lush forests.', highlights: ['Tallest waterfall in Telangana', 'Lush forests'], bestTime: 'Monsoon', icon: '💧' },
+            'nellore-somasila-dam': { name: 'Somasila Dam', coords: [14.6100, 79.3200], type: 'waterfall', location: 'Nellore, Andhra Pradesh', description: 'A large dam across the Pennar River, offering scenic views.', highlights: ['Large dam', 'Scenic views'], bestTime: 'Monsoon', icon: '💧' },
+            'east-godavari-coringa-wildlife-sanctuary': { name: 'Coringa Wildlife Sanctuary', coords: [16.8200, 82.2500], type: 'wildlife', location: 'Kakinada, Andhra Pradesh', description: 'Second largest stretch of mangrove forests in India, home to fishing cats and otters.', highlights: ['Mangrove forests', 'Fishing cats'], bestTime: 'October to March', icon: '🌿' },
+            'kadapa-siddavatam-fort': { name: 'Siddavatam Fort', coords: [14.4700, 78.9600], type: 'monument', location: 'Kadapa, Andhra Pradesh', description: 'Historic fort on the banks of Pennar River, known for its architecture.', highlights: ['Historic fort', 'Pennar River'], bestTime: 'October to March', icon: '🏰' },
+            'chittoor-horsley-hills': { name: 'Horsley Hills', coords: [13.6600, 78.4100], type: 'hill-station', location: 'Chittoor, Andhra Pradesh', description: 'A tranquil hill station known for its pleasant climate and dense forests.', highlights: ['Tranquil hill station', 'Dense forests'], bestTime: 'December to March', icon: '🌲' },
+            'adilabad-basar-saraswati-temple': { name: 'Gnana Saraswati Temple, Basar', coords: [18.8800, 77.9500], type: 'temple', location: 'Nirmal, Telangana', description: 'One of the two ancient temples of Goddess Saraswati in India, dedicated to the Goddess of Knowledge.', highlights: ['Goddess Saraswati', 'River Godavari'], bestTime: 'All year', icon: '🛕' },
+            'nizamabad-pocharam-lake': { name: 'Pocharam Lake (Nizamabad)', coords: [18.2500, 78.4300], type: 'waterfall', location: 'Nizamabad, Telangana', description: 'A serene lake near Pocharam village, popular for picnics and boating.', highlights: ['Serene lake', 'Boating'], bestTime: 'October to March', icon: '🚣' },
+            'karimnagar-elgandal-fort': { name: 'Elgandal Fort', coords: [18.4400, 79.1300], type: 'monument', location: 'Karimnagar, Telangana', description: 'Historic fort with a mosque and other structures.', highlights: ['Historic fort', 'Mosque'], bestTime: 'October to March', icon: '🏰' },
+            'suryapet-pillalamarri': { name: 'Pillalamarri (Great Banyan Tree)', coords: [17.4300, 78.5000], type: 'monument', location: 'Mahabubnagar, Telangana', description: 'A single banyan tree covering several acres, forming a mini-forest.', highlights: ['Giant Banyan Tree', 'Mini-forest'], bestTime: 'All year', icon: '🌳' },
+            'tirupati-sv-museum': { name: 'Sri Venkateswara Museum', coords: [13.6339, 79.4184], type: 'monument', location: 'Tirupati, Andhra Pradesh', description: 'Showcases traditional artifacts, sculptures, and religious items related to Tirumala temple.', highlights: ['Religious artifacts', 'Sculptures'], bestTime: 'All year', icon: '🖼️' },
+            'vizianagaram-gajapathi-palace': { name: 'Gajapathi Palace', coords: [18.1000, 83.4000], type: 'monument', location: 'Vizianagaram, Andhra Pradesh', description: 'Historic palace reflecting the grandeur of the Gajapathi rulers.', highlights: ['Historic palace', 'Grandeur'], bestTime: 'October to March', icon: '👑' },
+            'vizianagaram-punyagiri': { name: 'Punyagiri', coords: [18.3000, 83.4500], type: 'hill-station', location: 'Vizianagaram, Andhra Pradesh', description: 'A sacred hill with temples and scenic views.', highlights: ['Sacred hill', 'Scenic views'], bestTime: 'All year', icon: '⛰️' },
+            'visakhapatnam-erramatti-dibbalu': { name: 'Erramatti Dibbalu (Red Sand Dunes)', coords: [17.7900, 83.3900], type: 'beach', location: 'Visakhapatnam, Andhra Pradesh', description: 'Unique red sand dunes, a geologically significant site near the coast.', highlights: ['Red sand dunes', 'Geological site'], bestTime: 'All year', icon: '🏖️' },
+            'rameshwaram-kunthukal-beach': { name: 'Kunthukal Beach', coords: [9.2000, 79.2000], type: 'beach', location: 'Rameswaram, Tamil Nadu', description: 'A beautiful and calm beach, ideal for swimming and relaxation.', highlights: ['Calm beach', 'Swimming'], bestTime: 'October to March', icon: '🏖️' },
+            'tirunelveli-mannar-marine-national-park': { name: 'Gulf of Mannar Marine National Park', coords: [9.0000, 79.0000], type: 'wildlife', location: 'Rameswaram to Thoothukudi, Tamil Nadu', description: 'First marine biosphere reserve in Asia, rich in marine biodiversity.', highlights: ['Marine biosphere', 'Biodiversity'], bestTime: 'October to March', icon: '🐠' },
+            'tuticorin-hare-island': { name: 'Hare Island (Muzhuthivu)', coords: [8.8000, 78.2000], type: 'beach', location: 'Thoothukudi, Tamil Nadu', description: 'An island known for its serene beach and birdlife, accessible by boat.', highlights: ['Serene island', 'Birdlife'], bestTime: 'October to March', icon: '🏝️' },
+            'madurai-thirumalai-nayakkar-mahal': { name: 'Thirumalai Nayakkar Palace', coords: [9.9190, 78.1170], type: 'monument', location: 'Madurai, Tamil Nadu', description: 'A 17th-century palace built by King Thirumalai Nayak, Indo-Saracenic architecture.', highlights: ['Indo-Saracenic', 'Light & Sound Show'], bestTime: 'October to March', icon: '👑' },
+            'tiruchirappalli-rockfort-ganesh-temple': { name: 'Rockfort Ucchi Pillayar Temple', coords: [10.8286, 78.6869], type: 'temple', location: 'Tiruchirappalli, Tamil Nadu', description: 'A temple dedicated to Lord Ganesha, located atop a rock formation with panoramic views.', highlights: ['Hilltop temple', 'Panoramic views'], bestTime: 'All year', icon: '🛕' },
+            'kumbakonam-airavatesvara-temple': { name: 'Airavatesvara Temple', coords: [10.9419, 79.3564], type: 'temple', location: 'Darasuram, Kumbakonam, Tamil Nadu', description: 'A UNESCO World Heritage site, built by Rajaraja Chola II, known for its exquisite carvings.', highlights: ['UNESCO World Heritage', 'Exquisite carvings'], bestTime: 'October to March', icon: '🏛️' },
+            'pondy-botanical-garden': { name: 'Botanical Garden, Puducherry', coords: [11.9333, 79.8280], type: 'monument', location: 'Puducherry (near Tamil Nadu)', description: 'Established in 1826, known for its themed sections and musical fountain.', highlights: ['Themed sections', 'Musical fountain'], bestTime: 'All year', icon: '🌹' },
+            'kanchipuram-ekambareswarar-temple': { name: 'Ekambareswarar Temple', coords: [12.8364, 79.7000], type: 'temple', location: 'Kanchipuram, Tamil Nadu', description: 'One of the Pancha Bhoota Stalam, representing the element Earth.', highlights: ['Pancha Bhoota Stalam', 'Earth element'], bestTime: 'October to March', icon: '🕉️' },
+            'kanchipuram-varadaraja-perumal-temple': { name: 'Varadaraja Perumal Temple', coords: [12.8300, 79.7000], type: 'temple', location: 'Kanchipuram, Tamil Nadu', description: 'One of the Divya Desams, dedicated to Lord Vishnu.', highlights: ['Divya Desam', 'Lord Vishnu'], bestTime: 'October to March', icon: '🛕' },
+            'chidambaram-pichavaram-mangrove-forest': { name: 'Pichavaram Mangrove Forest', coords: [11.4167, 79.7920], type: 'wildlife', location: 'Chidambaram, Tamil Nadu', description: 'Second largest mangrove forest in the world, popular for boat rides through canals.', highlights: ['Mangrove forest', 'Boat rides'], bestTime: 'November to February', icon: '🌿' },
+            'coimbatore-aliyar-dam': { name: 'Aliyar Dam', coords: [10.4280, 76.9800], type: 'waterfall', location: 'Pollachi, Coimbatore, Tamil Nadu', description: 'Scenic dam with a park and a mini-theme park nearby, popular picnic spot.', highlights: ['Scenic dam', 'Picnic spot'], bestTime: 'All year', icon: '💧' },
+            'valparai-hill-station': { name: 'Valparai', coords: [10.3600, 76.9600], type: 'hill-station', location: 'Pollachi, Coimbatore, Tamil Nadu', description: 'A tranquil hill station amidst tea and coffee plantations, known for its pristine beauty.', highlights: ['Tea plantations', 'Pristine beauty'], bestTime: 'September to March', icon: '🌲' },
+            'theni-kolukkumalai-tea-estate': { name: 'Kolukkumalai Tea Estate', coords: [10.0200, 77.1000], type: 'hill-station', location: 'Theni, Tamil Nadu', description: 'Highest organic tea estate in the world, accessible by jeep, offering stunning views.', highlights: ['Highest organic tea estate', 'Stunning views'], bestTime: 'September to March', icon: '☕' },
+            'madurai-vandiyur-mariamman-teppakulam': { name: 'Vandiyur Mariamman Teppakulam', coords: [9.9100, 78.1400], type: 'temple', location: 'Madurai, Tamil Nadu', description: 'Temple pond where the annual Float Festival takes place.', highlights: ['Temple pond', 'Float Festival'], bestTime: 'January-February (festival)', icon: '🌊' },
+            'karur-pasupatheeswarar-temple': { name: 'Pasupatheeswarar Temple', coords: [10.9000, 78.0800], type: 'temple', location: 'Karur, Tamil Nadu', description: 'Ancient Shiva temple, part of the Kongu Nadu temples.', highlights: ['Ancient Shiva temple', 'Kongu Nadu'], bestTime: 'All year', icon: '🕉️' },
+            'dindigul-sri-kalahasteeswarar-temple-dindigul': { name: 'Sri Kalahasteeswarar Temple, Dindigul', coords: [10.3600, 77.9800], type: 'temple', location: 'Dindigul, Tamil Nadu', description: 'Another Shiva temple in Dindigul, known for its religious significance.', highlights: ['Shiva temple', 'Religious significance'], bestTime: 'All year', icon: '🕉️' },
+            'sri-city-museum-and-library': { name: 'Sri City Museum and Library', coords: [13.6200, 79.9400], type: 'monument', location: 'Sri City, Andhra Pradesh', description: 'A modern industrial city with a small museum and library for visitors.', highlights: ['Modern industrial city', 'Museum'], bestTime: 'All year', icon: '🏛️' },
+            'pulicat-town-heritage': { name: 'Pulicat Town Heritage', coords: [13.7200, 80.2000], type: 'monument', location: 'Pulicat, Tamil Nadu', description: 'Historic town with Dutch and British colonial remnants, and old churches.', highlights: ['Dutch/British remnants', 'Old churches'], bestTime: 'October to March', icon: '🏰' },
+            'chennai-vadapalani-murugan-temple': { name: 'Vadapalani Murugan Temple', coords: [13.0600, 80.2100], type: 'temple', location: 'Vadapalani, Chennai, Tamil Nadu', description: 'A popular Murugan temple in Chennai, known for film connections.', highlights: ['Popular Murugan temple', 'Film connections'], bestTime: 'All year', icon: '🛕' },
+            'chennai-st-thomas-mount': { name: 'St. Thomas Mount', coords: [13.0000, 80.2000], type: 'monument', location: 'Chennai, Tamil Nadu', description: 'A small hillock with a church where St. Thomas is believed to have been martyred.', highlights: ['St. Thomas', 'Panoramic views'], bestTime: 'All year', icon: '⛪' },
+            'kanyakumari-courtallam-five-falls': { name: 'Courtallam Five Falls', coords: [8.9312, 77.2847], type: 'waterfall', location: 'Courtallam, Tamil Nadu', description: 'One of the main waterfalls in Courtallam, known for its five cascades.', highlights: ['Five cascades', 'Medicinal properties'], bestTime: 'June to September', icon: '💧' },
+            'kanyakumari-chitharal-jain-monuments': { name: 'Chitharal Jain Monuments', coords: [8.3500, 77.4000], type: 'monument', location: 'Kanyakumari, Tamil Nadu', description: 'Ancient rock-cut Jain temples and sculptures from the 9th century.', highlights: ['Rock-cut Jain temples', 'Ancient sculptures'], bestTime: 'October to March', icon: '🗿' },
+            'dindigul-sirumalai-hill-station': { name: 'Sirumalai Hills', coords: [10.2300, 78.0800], type: 'hill-station', location: 'Dindigul, Tamil Nadu', description: 'A serene hill station known for its medicinal plants and pleasant climate.', highlights: ['Medicinal plants', 'Pleasant climate'], bestTime: 'All year', icon: '🌲' },
+            'karimnagar-lower-manair-dam': { name: 'Lower Manair Dam', coords: [18.4200, 79.1300], type: 'waterfall', location: 'Karimnagar, Telangana', description: 'A large dam built across the Manair River, popular for local outings.', highlights: ['Large dam', 'Local outing'], bestTime: 'Monsoon', icon: '💧' },
+            'nizamabad-nizamsagar-dam': { name: 'Nizamsagar Dam', coords: [18.3000, 77.8700], type: 'waterfall', location: 'Nizamabad, Telangana', description: 'Historic dam built across the Manjira River, with beautiful gardens.', highlights: ['Historic dam', 'Beautiful gardens'], bestTime: 'Monsoon', icon: '💧' },
+            'adilabad-kawala-wildlife-sanctuary': { name: 'Kawala Wildlife Sanctuary', coords: [19.0000, 79.2000], type: 'wildlife', location: 'Adilabad, Telangana', description: 'Known for its dry deciduous forests and diverse wildlife.', highlights: ['Dry deciduous forests', 'Diverse wildlife'], bestTime: 'October to March', icon: '🦌' },
+            'adilabad-pranahita-wildlife-sanctuary': { name: 'Pranahita Wildlife Sanctuary', coords: [19.0000, 79.8000], type: 'wildlife', location: 'Adilabad, Telangana', description: 'Situated along the Pranahita River, known for its unique flora and fauna.', highlights: ['Pranahita River', 'Unique flora and fauna'], bestTime: 'October to March', icon: '🌿' },
+            'nalgonda-somasila-temple': { name: 'Somasila Temple Complex', coords: [16.0700, 78.8700], type: 'temple', location: 'Nalgonda, Telangana', description: 'A cluster of 15 Shiva temples submerged during Srisailam Dam construction and relocated.', highlights: ['Submerged temples', 'Shiva Temples'], bestTime: 'All year', icon: '🕉️' },
+            'vizianagaram-ramateertham': { name: 'Ramateertham', coords: [18.2500, 83.4000], type: 'temple', location: 'Vizianagaram, Andhra Pradesh', description: 'Ancient Hindu pilgrimage site, known for its Rama Temple and Buddhist monastery ruins.', highlights: ['Rama Temple', 'Buddhist ruins'], bestTime: 'October to March', icon: '🛕' },
+            'hyderabad-neelagiri-thar-conservation-centre': { name: 'Nehru Zoological Park (Nilgiri Tahr Enclosure)', coords: [17.3370, 78.4550], type: 'wildlife', location: 'Hyderabad, Telangana', description: 'Specific enclosure within the zoo focusing on Nilgiri Tahr conservation.', highlights: ['Nilgiri Tahr', 'Conservation'], bestTime: 'All year', icon: '🐐' },
+            'telangana-kothagudem-sitaramachandra-swamy-temple': { name: 'Sitaramachandra Swamy Temple, Kothagudem', coords: [17.6534, 80.8800], type: 'temple', location: 'Kothagudem, Telangana', description: 'A significant Lord Rama temple in the town of Kothagudem.', highlights: ['Lord Rama Temple', 'Pilgrimage'], bestTime: 'October to March', icon: '🛕' },
+            'telangana-mahabubnagar-koilsagar-dam': { name: 'Koilsagar Dam', coords: [16.6500, 77.8800], type: 'waterfall', location: 'Mahabubnagar, Telangana', description: 'A picturesque dam with a reservoir, popular for day trips and boating.', highlights: ['Picturesque dam', 'Boating'], bestTime: 'October to March', icon: '💧' },
+            'telangana-shamirpet-lake': { name: 'Shamirpet Lake', coords: [17.6500, 78.5800], type: 'beach', location: 'Hyderabad, Telangana', description: 'An artificial lake popular for picnics, boating, and bird watching.', highlights: ['Artificial lake', 'Bird watching'], bestTime: 'October to March', icon: '🚣' },
+            'tamil-nadu-sathuragiri-hills': { name: 'Sathuragiri Hills', coords: [9.7600, 77.6000], type: 'hill-station', location: 'Virudhunagar, Tamil Nadu', description: 'A sacred mountain range with ancient temples, popular for trekking and spiritual retreats.', highlights: ['Sacred mountain', 'Trekking'], bestTime: 'October to March', icon: '⛰️' },
+            'tamil-nadu-kolli-hills': { name: 'Kolli Hills', coords: [11.3300, 78.3500], type: 'hill-station', location: 'Namakkal, Tamil Nadu', description: 'A relatively untouched hill station with 70 hairpin bends, known for medicinal plants and waterfalls.', highlights: ['70 Hairpin Bends', 'Medicinal Plants'], bestTime: 'August to December', icon: '🌲' },
+            'tamil-nadu-papanasam-falls': { name: 'Papanasam Falls', coords: [8.6800, 77.3800], type: 'waterfall', location: 'Tirunelveli, Tamil Nadu', description: 'A sacred waterfall in the Western Ghats, believed to wash away sins.', highlights: ['Sacred waterfall', 'Medicinal properties'], bestTime: 'June to September', icon: '💧' },
+            'tamil-nadu-karikali-bird-sanctuary': { name: 'Karikili Bird Sanctuary', coords: [12.7000, 80.0000], type: 'wildlife', location: 'Kancheepuram, Tamil Nadu', description: 'Home to a variety of resident and migratory birds, including storks and pelicans.', highlights: ['Migratory birds', 'Storks and pelicans'], bestTime: 'October to March', icon: '🦢' },
+            'tamil-nadu-vedanthangal-bird-sanctuary': { name: 'Vedanthangal Bird Sanctuary', coords: [12.5500, 79.8500], type: 'wildlife', location: 'Chengalpattu, Tamil Nadu', description: 'One of the oldest water bird sanctuaries in India, a major breeding ground.', highlights: ['Oldest bird sanctuary', 'Breeding ground'], bestTime: 'October to March', icon: '🦢' },
+            'tamil-nadu-anamalai-hills': { name: 'Anamalai Hills', coords: [10.3000, 77.0000], type: 'hill-station', location: 'Pollachi, Coimbatore, Tamil Nadu', description: 'Part of the Western Ghats, known for tea and coffee plantations, and wildlife.', highlights: ['Tea/Coffee plantations', 'Wildlife'], bestTime: 'September to March', icon: '🌲' },
+            'tamil-nadu-pollachi-top-slip': { name: 'Top Slip (Anaimalai Tiger Reserve)', coords: [10.4500, 76.9200], type: 'wildlife', location: 'Pollachi, Coimbatore, Tamil Nadu', description: 'A popular spot within the Anaimalai Tiger Reserve for elephant safaris and trekking.', highlights: ['Elephant safaris', 'Trekking'], bestTime: 'October to May', icon: '🐘' },
+            'tamil-nadu-chennai-ripong-garden': { name: 'Ripon Building & Corporation Garden', coords: [13.0800, 80.2800], type: 'monument', location: 'Chennai, Tamil Nadu', description: 'A grand architectural marvel and the seat of Chennai Corporation.', highlights: ['Architectural marvel', 'Chennai Corporation'], bestTime: 'All year', icon: '🏛️' },
+            'tamil-nadu-chennai-victoria-public-hall': { name: 'Victoria Public Hall', coords: [13.0800, 80.2800], type: 'monument', location: 'Chennai, Tamil Nadu', description: 'A historic building designed in Indo-Saracenic style, used for public gatherings.', highlights: ['Indo-Saracenic', 'Historic building'], bestTime: 'All year', icon: '🏛️' },
+            'tamil-nadu-chennai-lighthouse': { name: 'Chennai Lighthouse', coords: [13.0475, 80.2824], type: 'monument', location: 'Marina Beach, Chennai, Tamil Nadu', description: 'A landmark lighthouse offering panoramic views of Chennai city and the Bay of Bengal.', highlights: ['Panoramic views', 'City landmark'], bestTime: 'All year', icon: '🗼' },
+            'tamil-nadu-chennai-kalakshetra': { name: 'Kalakshetra Foundation', coords: [12.9300, 80.2500], type: 'monument', location: 'Tiruvanmiyur, Chennai, Tamil Nadu', description: 'A cultural academy dedicated to the preservation of traditional Indian art forms.', highlights: ['Traditional art forms', 'Cultural academy'], bestTime: 'All year', icon: '🎭' },
+            'tamil-nadu-chennai-dakshina-chitra': { name: 'DakshinaChitra', coords: [12.7840, 80.2220], type: 'monument', location: 'ECR, Chennai, Tamil Nadu', description: 'An ethnographic museum dedicated to the art, architecture, lifestyles, and crafts of South India.', highlights: ['Ethnographic museum', 'South Indian crafts'], bestTime: 'All year', icon: '🖼️' },
+            'tamil-nadu-chennai-vadapalani-hill-temple': { name: 'Vadapalani Hill Temple', coords: [13.0600, 80.2100], type: 'temple', location: 'Vadapalani, Chennai, Tamil Nadu', description: 'A smaller hill temple offering views and a serene atmosphere.', highlights: ['Hilltop temple', 'Serene atmosphere'], bestTime: 'All year', icon: '🛕' },
+            'tamil-nadu-kovilpatti-kalugumalai-jain-beds-cave': { name: 'Kalugumalai Jain Beds Cave', coords: [9.1670, 77.8100], type: 'monument', location: 'Thoothukudi, Tamil Nadu', description: 'Ancient rock-cut caves with Jain carvings, historically significant.', highlights: ['Jain carvings', 'Historical caves'], bestTime: 'October to March', icon: '🗿' },
+            'tamil-nadu-theni-kolukkumalai': { name: 'Kolukkumalai Tea Factory', coords: [10.0200, 77.1000], type: 'monument', location: 'Theni, Tamil Nadu', description: 'Operating since 1930s, known for its traditional tea processing method.', highlights: ['Tea factory', 'Traditional processing'], bestTime: 'September to March', icon: '☕' },
+            'andhra-pradesh-guntur-kondaveedu-fort': { name: 'Kondaveedu Fort', coords: [16.2500, 80.1200], type: 'monument', location: 'Guntur, Andhra Pradesh', description: 'Historic hill fort with several temples and structures.', highlights: ['Hill fort', 'Historic temples'], bestTime: 'October to March', icon: '🏰' },
+            'andhra-pradesh-kurnool-yaganti': { name: 'Yaganti Temple', coords: [15.4200, 78.4300], type: 'temple', location: 'Kurnool, Andhra Pradesh', description: 'Ancient Shiva temple known for its growing Nandi idol and natural caves.', highlights: ['Growing Nandi', 'Natural caves'], bestTime: 'October to March', icon: '🕉️' },
+            'andhra-pradesh-nellore-barapangala-beach': { name: 'Barapangala Beach', coords: [14.0500, 80.1000], type: 'beach', location: 'Nellore, Andhra Pradesh', description: 'Secluded beach with casuarina trees, good for quiet relaxation.', highlights: ['Secluded beach', 'Quiet relaxation'], bestTime: 'October to March', icon: '🏖️' },
+            'andhra-pradesh-chittoor-srikalahasti-dam': { name: 'Srikalahasti Dam', coords: [13.7500, 79.6800], type: 'waterfall', location: 'Srikalahasti, Andhra Pradesh', description: 'A local dam offering scenic views, sometimes with cascading water during monsoon.', highlights: ['Scenic dam', 'Monsoon views'], bestTime: 'Monsoon', icon: '💧' },
+            'telangana-mahabubnagar-jatprole-temple': { name: 'Jatprole Temple', coords: [16.3000, 77.9200], type: 'temple', location: 'Mahabubnagar, Telangana', description: 'Historic temple showcasing traditional architecture.', highlights: ['Historic temple', 'Traditional architecture'], bestTime: 'All year', icon: '🛕' },
+            'telangana-kothagudem-kinnersani-wildlife-sanctuary': { name: 'Kinnersani Wildlife Sanctuary', coords: [17.7000, 80.4000], type: 'wildlife', location: 'Kothagudem, Telangana', description: 'Known for its deer park and reservoir, good for nature walks and boating.', highlights: ['Deer park', 'Boating'], bestTime: 'October to March', icon: '🦌' },
+            'telangana-adilabad-kadam-dam': { name: 'Kadam Dam', coords: [19.1100, 79.0300], type: 'waterfall', location: 'Adilabad, Telangana', description: 'A large dam with scenic surroundings, popular for picnics.', highlights: ['Large dam', 'Picnic spot'], bestTime: 'Monsoon', icon: '💧' },
+            'tamil-nadu-nilgiris-emerald-lake': { name: 'Emerald Lake', coords: [11.3500, 76.6600], type: 'hill-station', location: 'Nilgiris, Tamil Nadu', description: 'A serene lake near Ooty, known for its picturesque surroundings and birdlife.', highlights: ['Serene lake', 'Birdlife'], bestTime: 'All year', icon: '🏞️' },
+            'tamil-nadu-ooty-pykara-falls': { name: 'Pykara Falls', coords: [11.4500, 76.5800], type: 'waterfall', location: 'Ooty, Tamil Nadu', description: 'Sacred waterfall with a boat house nearby, popular tourist spot.', highlights: ['Sacred waterfall', 'Boat house'], bestTime: 'Monsoon', icon: '💧' },
+            'tamil-nadu-theni-kumbakarai-falls': { name: 'Kumbakarai Falls', coords: [10.1500, 77.5800], type: 'waterfall', location: 'Theni, Tamil Nadu', description: 'A natural waterfall at the foothills of Kodaikanal, popular for bathing.', highlights: ['Natural waterfall', 'Bathing spot'], bestTime: 'Monsoon', icon: '💧' },
+            'tamil-nadu-tirunelveli-manimuthar-falls': { name: 'Manimuthar Falls', coords: [8.6500, 77.3800], type: 'waterfall', location: 'Tirunelveli, Tamil Nadu', description: 'Scenic waterfall with a dam and botanical garden nearby.', highlights: ['Scenic waterfall', 'Botanical garden'], bestTime: 'Monsoon', icon: '💧' },
+            'tamil-nadu-chennai-pulicat-lake': { name: 'Pulicat Lake (Tamil Nadu Shore)', coords: [13.4300, 80.3200], type: 'wildlife', location: 'Thiruvallur, Tamil Nadu', description: 'The eastern side of Pulicat Lake, often visited for birdwatching and scenic beauty.', highlights: ['Birdwatching', 'Scenic beauty'], bestTime: 'October to March', icon: '🦢' },
+            'tamil-nadu-kodaikanal-glen-falls': { name: 'Glen Falls', coords: [10.2300, 77.4800], type: 'waterfall', location: 'Kodaikanal, Tamil Nadu', description: 'A relatively small but beautiful waterfall, surrounded by dense forests.', highlights: ['Small waterfall', 'Dense forests'], bestTime: 'Monsoon', icon: '💧' },
+            'tamil-nadu-kodaikanal-berijam-lake': { name: 'Berijam Lake', coords: [10.1300, 77.3500], type: 'hill-station', location: 'Kodaikanal, Tamil Nadu', description: 'A pristine freshwater lake surrounded by a reserved forest, requiring permission to visit.', highlights: ['Pristine lake', 'Reserved forest'], bestTime: 'April to June, Sep to Oct', icon: '🌲' },
+            'andhra-pradesh-vishakhapatnam-thotlakonda': { name: 'Thotlakonda Buddhist Complex', coords: [17.7700, 83.3900], type: 'monument', location: 'Visakhapatnam, Andhra Pradesh', description: 'Ancient Buddhist site with stupas, chaityas, and viharas overlooking the sea.', highlights: ['Buddhist site', 'Sea views'], bestTime: 'October to March', icon: '☸️' },
+            'andhra-pradesh-guntur-machilipatnam-port-area': { name: 'Machilipatnam Port Area', coords: [16.1800, 81.1400], type: 'monument', location: 'Machilipatnam, Andhra Pradesh', description: 'Historic port town with remnants of Dutch and British trading posts.', highlights: ['Historic port', 'Colonial remnants'], bestTime: 'October to March', icon: '⚓' },
+            'telangana-adilabad-jannaram-wildlife-sanctuary': { name: 'Jannaram Wildlife Sanctuary', coords: [18.9000, 79.1000], type: 'wildlife', location: 'Adilabad, Telangana', description: 'Known for its tiger population and dry deciduous forests.', highlights: ['Tiger population', 'Dry deciduous forests'], bestTime: 'October to March', icon: '🐅' },
+            'telangana-peddapalli-ramagiri-fort': { name: 'Ramagiri Fort', coords: [18.5200, 79.4500], type: 'monument', location: 'Peddapalli, Telangana', description: 'Historic hill fort with temples and a beautiful landscape.', highlights: ['Hill fort', 'Beautiful landscape'], bestTime: 'October to March', icon: '🏰' },
+            'tamil-nadu-chennai-kapaleeswarar-pond': { name: 'Kapaleeshwarar Temple Tank', coords: [13.0336, 80.2709], type: 'temple', location: 'Mylapore, Chennai, Tamil Nadu', description: 'The sacred tank adjacent to the Kapaleeshwarar Temple.', highlights: ['Sacred tank', 'Religious rituals'], bestTime: 'All year', icon: '🌊' },
+            'tamil-nadu-kovilpatti-kulasekarapattinam-temple': { name: 'Kulasekarapattinam Mutharamman Temple', coords: [8.4000, 78.1000], type: 'temple', location: 'Thoothukudi, Tamil Nadu', description: 'Coastal temple famous for its Dasara festival celebrations.', highlights: ['Coastal temple', 'Dasara festival'], bestTime: 'September-October', icon: '🛕' },
+            'tamil-nadu-tiruvannamalai-parvathamalai': { name: 'Parvathamalai', coords: [12.2000, 79.0000], type: 'hill-station', location: 'Tiruvannamalai, Tamil Nadu', description: 'A sacred mountain known for its challenging trek and Shiva temple at the summit.', highlights: ['Challenging trek', 'Shiva temple'], bestTime: 'October to March', icon: '⛰️' },
+            'andhra-pradesh-chittoor-rishivalley': { name: 'Rishi Valley School', coords: [13.6100, 78.4300], type: 'monument', location: 'Chittoor, Andhra Pradesh', description: 'A renowned boarding school known for its unique educational philosophy and natural surroundings.', highlights: ['Renowned school', 'Natural surroundings'], bestTime: 'Academic season', icon: '🏫' },
+            'telangana-mahabubnagar-somasila': { name: 'Somasila View Point', coords: [16.0700, 78.8700], type: 'waterfall', location: 'Mahabubnagar, Telangana', description: 'Scenic viewpoint near Somasila Dam, offering beautiful river and forest views.', highlights: ['Scenic viewpoint', 'River views'], bestTime: 'Monsoon', icon: '🏞️' },
+            'tamil-nadu-yercaud-silk-farm': { name: 'Yercaud Silk Farm', coords: [11.7800, 78.2100], type: 'monument', location: 'Yercaud, Tamil Nadu', description: 'Demonstrates the process of silk worm rearing and silk production.', highlights: ['Silk production', 'Educational tour'], bestTime: 'All year', icon: '🐛' },
+            'tamil-nadu-kodaikanal-pillar-rocks': { name: 'Pillar Rocks', coords: [10.2200, 77.4900], type: 'hill-station', location: 'Kodaikanal, Tamil Nadu', description: 'Three giant rock pillars standing shoulder to shoulder, offering a magnificent view.', highlights: ['Giant rock pillars', 'Magnificent view'], bestTime: 'April to June, Sep to Oct', icon: '⛰️' },
+            'tamil-nadu-ooty-tea-museum': { name: 'Doddabetta Tea Factory & Tea Museum', coords: [11.4100, 76.7400], type: 'monument', location: 'Ooty, Tamil Nadu', description: 'Learn about tea processing and history, with tea tasting sessions.', highlights: ['Tea processing', 'Tea tasting'], bestTime: 'All year', icon: '☕' },
+            'tamil-nadu-kanyakumari-vattakottai-fort': { name: 'Vattakottai Fort', coords: [8.1600, 77.4800], type: 'monument', location: 'Kanyakumari, Tamil Nadu', description: 'A circular granite fort overlooking the Bay of Bengal, offering stunning views.', highlights: ['Circular fort', 'Bay of Bengal views'], bestTime: 'October to March', icon: '🏰' },
+            'tamil-nadu-kanyakumari-wax-museum': { name: 'Kanyakumari Wax Museum', coords: [8.0883, 77.5593], type: 'monument', location: 'Kanyakumari, Tamil Nadu', description: 'India\'s first wax museum with wax statues of prominent personalities.', highlights: ['First wax museum', 'Prominent personalities'], bestTime: 'All year', icon: '🖼️' },
+            'tamil-nadu-madurai-vaigai-dam-park': { name: 'Vaigai Dam Park', coords: [9.8000, 77.5600], type: 'waterfall', location: 'Theni, Tamil Nadu', description: 'A beautiful garden maintained at the base of Vaigai Dam, popular for families.', highlights: ['Beautiful garden', 'Family spot'], bestTime: 'Monsoon', icon: '🌹' },
+            'andhra-pradesh-guntur-kondaveedu-caves': { name: 'Kondaveedu Caves', coords: [16.2500, 80.1200], type: 'monument', location: 'Guntur, Andhra Pradesh', description: 'Natural caves near Kondaveedu Fort, offering an adventurous experience.', highlights: ['Natural caves', 'Adventurous experience'], bestTime: 'October to March', icon: '🦇' },
+            'andhra-pradesh-kurnool-onda-rock-paintings': { name: 'Onda Rock Paintings', coords: [15.8200, 78.0300], type: 'monument', location: 'Kurnool, Andhra Pradesh', description: 'Prehistoric rock paintings found in the Onda caves, significant for archaeological interest.', highlights: ['Prehistoric paintings', 'Archaeological interest'], bestTime: 'October to March', icon: '🎨' },
+            'telangana-mahabubnagar-koilsagar-reservoir': { name: 'Koilsagar Reservoir', coords: [16.6500, 77.8800], type: 'waterfall', location: 'Mahabubnagar, Telangana', description: 'The reservoir formed by Koilsagar Dam, offering picturesque views and boating.', highlights: ['Picturesque reservoir', 'Boating'], bestTime: 'October to March', icon: '🚣' },
+            'tamil-nadu-chennai-queens-beach': { name: 'Queens Beach', coords: [13.0475, 80.2824], type: 'beach', location: 'Marina Beach, Chennai, Tamil Nadu', description: 'A quieter stretch of Marina Beach, popular for early morning and late evening strolls.', highlights: ['Quieter stretch', 'Strolling'], bestTime: 'November to February', icon: '🏖️' },
+            'tamil-nadu-chennai-broken-bridge': { name: 'Broken Bridge', coords: [12.9900, 80.2500], type: 'monument', location: 'Adyar, Chennai, Tamil Nadu', description: 'A dilapidated bridge over the Adyar River, popular for photography and sunset views.', highlights: ['Photography spot', 'Sunset views'], bestTime: 'All year', icon: '🌉' },
+            'tamil-nadu-chennai-anna-zoo-safari': { name: 'Vandalur Zoo Safari', coords: [12.8799, 80.0800], type: 'wildlife', location: 'Chennai, Tamil Nadu', description: 'Offers guided safari tours to see various animals in semi-open enclosures.', highlights: ['Safari tours', 'Semi-open enclosures'], bestTime: 'All year', icon: '🐅' },
+            'tamil-nadu-coimbatore-kovai-kuttralam': { name: 'Kovai Kuttralam Falls', coords: [11.0000, 76.6000], type: 'waterfall', location: 'Coimbatore, Tamil Nadu', description: 'A natural waterfall near Siruvani Dam, requiring forest department permission to visit.', highlights: ['Natural waterfall', 'Forest permission'], bestTime: 'Monsoon', icon: '💧' },
+            'andhra-pradesh-ananthapur-penukonda-fort': { name: 'Penukonda Fort', coords: [14.0800, 77.6000], type: 'monument', location: 'Anantapur, Andhra Pradesh', description: 'Historic hill fort, once the capital of the Vijayanagara Empire.', highlights: ['Vijayanagara capital', 'Historic hill fort'], bestTime: 'October to March', icon: '🏰' },
+            'andhra-pradesh-kurnool-ahobilam-temples': { name: 'Ahobilam Temples', coords: [15.1396, 78.7180], type: 'temple', location: 'Kurnool, Andhra Pradesh', description: 'A complex of nine temples dedicated to Lord Narasimha, spread across hills and forests.', highlights: ['Nine Narasimha Temples', 'Pilgrimage'], bestTime: 'October to March', icon: '🛕' },
+            'telangana-hyderabad-kasu-brahmananda-reddy-national-park': { name: 'Kasu Brahmananda Reddy National Park', coords: [17.4000, 78.4300], type: 'wildlife', location: 'Jubilee Hills, Hyderabad, Telangana', description: 'An urban national park and a rich biodiversity spot, home to peacocks and various birds.', highlights: ['Urban national park', 'Peacocks'], bestTime: 'All year', icon: ' peacocks' },
+            'telangana-hyderabad-osman-sagar': { name: 'Osman Sagar (Gandipet Lake)', coords: [17.3700, 78.3300], type: 'waterfall', location: 'Hyderabad, Telangana', description: 'A scenic reservoir and a popular picnic spot, offering serene views.', highlights: ['Scenic reservoir', 'Picnic spot'], bestTime: 'All year', icon: '💧' },
+            'tamil-nadu-chennai-semmozhi-poonga': { name: 'Semmozhi Poonga', coords: [13.0500, 80.2400], type: 'monument', location: 'Chennai, Tamil Nadu', description: 'Botanical garden in Chennai, known for its diverse plant species and beautiful landscapes.', highlights: ['Botanical garden', 'Diverse plants'], bestTime: 'All year', icon: '🌹' },
+            'tamil-nadu-chennai-madras-high-court': { name: 'Madras High Court', coords: [13.0800, 80.2900], type: 'monument', location: 'Chennai, Tamil Nadu', description: 'One of the oldest high courts in India, known for its Indo-Saracenic architecture.', highlights: ['Oldest high court', 'Indo-Saracenic architecture'], bestTime: 'All year', icon: '🏛️' },
+            'tamil-nadu-chennai-vivekananda-house': { name: 'Vivekananda House', coords: [13.0500, 80.2800], type: 'monument', location: 'Triplicane, Chennai, Tamil Nadu', description: 'Historic building where Swami Vivekananda stayed, now a cultural center and museum.', highlights: ['Swami Vivekananda', 'Cultural center'], bestTime: 'All year', icon: '🏛️' },
+            'tamil-nadu-chennai-connemara-public-library': { name: 'Connemara Public Library', coords: [13.0600, 80.2500], type: 'monument', location: 'Egmore, Chennai, Tamil Nadu', description: 'One of the four National Depository Libraries in India, known for its vast collection.', highlights: ['National Depository', 'Vast collection'], bestTime: 'All year', icon: '📚' },
+            'tamil-nadu-chennai-prasanna-venkatesa-perumal-temple': { name: 'Prasanna Venkatesa Perumal Temple', coords: [13.0000, 80.2000], type: 'temple', location: 'Saidapet, Chennai, Tamil Nadu', description: 'An ancient temple dedicated to Lord Vishnu, popular among devotees.', highlights: ['Lord Vishnu', 'Ancient temple'], bestTime: 'All year', icon: '🛕' },
+            'tamil-nadu-chennai-arignar-anna-memorial': { name: 'Arignar Anna Memorial', coords: [13.0500, 80.2800], type: 'monument', location: 'Marina Beach, Chennai, Tamil Nadu', description: 'Memorial dedicated to C.N. Annadurai, former Chief Minister of Tamil Nadu.', highlights: ['Chief Minister memorial', 'Marina Beach'], bestTime: 'All year', icon: '🏛️' },
+            'tamil-nadu-chennai-mg-ramachandran-memorial': { name: 'M.G. Ramachandran Memorial', coords: [13.0500, 80.2800], type: 'monument', location: 'Marina Beach, Chennai, Tamil Nadu', description: 'Memorial dedicated to M.G. Ramachandran, former Chief Minister of Tamil Nadu.', highlights: ['Chief Minister memorial', 'Marina Beach'], bestTime: 'All year', icon: '🏛️' },
+            'tamil-nadu-chennai-valluvar-kottam': { name: 'Valluvar Kottam', coords: [13.0400, 80.2300], type: 'monument', location: 'Nungambakkam, Chennai, Tamil Nadu', description: 'A monument dedicated to the classical Tamil poet Valluvar, resembling a temple chariot.', highlights: ['Tamil poet Valluvar', 'Temple chariot design'], bestTime: 'All year', icon: '🗿' },
+            'tamil-nadu-chennai-kalikambal-temple': { name: 'Sri Kalikambal Temple', coords: [13.0800, 80.2800], type: 'temple', location: 'Broadway, Chennai, Tamil Nadu', description: 'Ancient temple dedicated to Goddess Kalikambal, visited by Chhatrapati Shivaji.', highlights: ['Goddess Kalikambal', 'Shivaji visit'], bestTime: 'All year', icon: '🛕' },
+            'tamil-nadu-chennai-thousand-lights-mosque': { name: 'Thousand Lights Mosque', coords: [13.0500, 80.2500], type: 'temple', location: 'Anna Salai, Chennai, Tamil Nadu', description: 'One of the largest mosques in Chennai, known for its unique architecture and illuminated minarets.', highlights: ['Largest mosque', 'Illuminated minarets'], bestTime: 'All year', icon: '🕌' },
+            'tamil-nadu-chennai-st-georges-cathedral': { name: 'St. George\'s Cathedral', coords: [13.0500, 80.2500], type: 'temple', location: 'Anna Salai, Chennai, Tamil Nadu', description: 'One of the oldest churches in Chennai, built in the Gothic style.', highlights: ['Oldest church', 'Gothic style'], bestTime: 'All year', icon: '⛪' },
+            'tamil-nadu-chennai-armour-museum': { name: 'Fort St. George Museum (Arms)', coords: [13.0811, 80.2854], type: 'monument', location: 'Fort St. George, Chennai, Tamil Nadu', description: 'Houses a collection of arms, uniforms, and artifacts from the colonial era.', highlights: ['Arms collection', 'Colonial era'], bestTime: 'All year', icon: '⚔️' },
+            'tamil-nadu-chennai-lighthouse-museum': { name: 'Chennai Lighthouse Museum', coords: [13.0475, 80.2824], type: 'monument', location: 'Marina Beach, Chennai, Tamil Nadu', description: 'Small museum showcasing the history of lighthouses in India.', highlights: ['Lighthouse history', 'Maritime artifacts'], bestTime: 'All year', icon: '⚓' },
+            'tamil-nadu-chennai-national-art-gallery': { name: 'National Art Gallery, Chennai', coords: [13.0600, 80.2500], type: 'monument', location: 'Egmore, Chennai, Tamil Nadu', description: 'Houses traditional Indian paintings and sculptures.', highlights: ['Indian paintings', 'Sculptures'], bestTime: 'All year', icon: '🖼️' },
+            'tamil-nadu-chennai-railway-museum': { name: 'Chennai Rail Museum', coords: [13.0700, 80.2100], type: 'monument', location: 'Integral Coach Factory, Chennai, Tamil Nadu', description: 'Showcases the history of Indian Railways, with old locomotives and coaches.', highlights: ['Indian Railways history', 'Locomotives'], bestTime: 'All year', icon: '🚂' },
+            'tamil-nadu-chennai-royapuram-railway-station': { name: 'Royapuram Railway Station', coords: [13.1000, 80.2800], type: 'monument', location: 'Royapuram, Chennai, Tamil Nadu', description: 'The oldest railway station in India still in use, opened in 1856.', highlights: ['Oldest railway station', 'Historic building'], bestTime: 'All year', icon: '🚂' },
+            'tamil-nadu-chennai-parry-corner': { name: 'Parry\'s Corner', coords: [13.0800, 80.2800], type: 'monument', location: 'George Town, Chennai, Tamil Nadu', description: 'A historic commercial hub and landmark in North Chennai.', highlights: ['Commercial hub', 'Historic landmark'], bestTime: 'All year', icon: '🏢' },
+            'tamil-nadu-chennai-anna-square': { name: 'Anna Square', coords: [13.0475, 80.2824], type: 'monument', location: 'Marina Beach, Chennai, Tamil Nadu', description: 'A public memorial for C.N. Annadurai, located on Marina Beach.', highlights: ['Public memorial', 'Marina Beach'], bestTime: 'All year', icon: '🏛️' },
+            'tamil-nadu-chennai-ramakrishna-math': { name: 'Sri Ramakrishna Math, Chennai', coords: [13.0300, 80.2600], type: 'temple', location: 'Mylapore, Chennai, Tamil Nadu', description: 'A spiritual organization and monastery, known for its peaceful ambiance and teachings.', highlights: ['Spiritual center', 'Monastery'], bestTime: 'All year', icon: '🧘' },
+            'tamil-nadu-chennai-mylapore-church': { name: 'Our Lady of Light Church (Luz Church)', coords: [13.0300, 80.2700], type: 'temple', location: 'Mylapore, Chennai, Tamil Nadu', description: 'One of the oldest churches in Chennai, built by the Portuguese in 1516.', highlights: ['Oldest church', 'Portuguese era'], bestTime: 'All year', icon: '⛪' },
+            'tamil-nadu-chennai-sanctuary-for-children-wildlife': { name: 'Madras Crocodile Bank Trust', coords: [12.7400, 80.2200], type: 'wildlife', location: 'ECR, Chennai, Tamil Nadu', description: 'A reptile zoo and research center, home to various species of crocodiles and alligators.', highlights: ['Reptile zoo', 'Crocodile conservation'], bestTime: 'All year', icon: '🐊' },
+            'tamil-nadu-chennai-theosophical-society': { name: 'The Theosophical Society Adyar', coords: [13.0000, 80.2600], type: 'monument', location: 'Adyar, Chennai, Tamil Nadu', description: 'International headquarters of the Theosophical Society, known for its vast green campus and ancient banyan tree.', highlights: ['Spiritual headquarters', 'Ancient banyan tree'], bestTime: 'All year', icon: '🌳' },
+            'tamil-nadu-kanyakumari-thiruparappu-falls': { name: 'Thirparappu Falls', coords: [8.4000, 77.2800], type: 'waterfall', location: 'Kanyakumari, Tamil Nadu', description: 'Artificial waterfall created from Kodaiyar River, popular for bathing and a scenic dam nearby.', highlights: ['Artificial waterfall', 'Scenic dam'], bestTime: 'All year', icon: '💧' },
+            'tamil-nadu-kanyakumari-ulakkai-aruvi': { name: 'Ulakkai Aruvi (Pestle Falls)', coords: [8.3000, 77.3000], type: 'waterfall', location: 'Kanyakumari, Tamil Nadu', description: 'A trekking destination leading to a natural waterfall in the Western Ghats.', highlights: ['Trekking destination', 'Natural waterfall'], bestTime: 'Monsoon', icon: '💧' },
+            'tamil-nadu-chennai-lighthouse-view': { name: 'Chennai Lighthouse (View from Top)', coords: [13.0475, 80.2824], type: 'monument', location: 'Marina Beach, Chennai, Tamil Nadu', description: 'Visitors can ascend the lighthouse for panoramic views of Chennai city and the Bay of Bengal.', highlights: ['Panoramic city view', 'Bay of Bengal view'], bestTime: 'All year', icon: '🗼' },
+            'tamil-nadu-chennai-semmozhi-poonga-garden': { name: 'Semmozhi Poonga (Garden Area)', coords: [13.0500, 80.2400], type: 'monument', location: 'Chennai, Tamil Nadu', description: 'Explore the various sections of the botanical garden with themed landscapes.', highlights: ['Botanical garden', 'Themed landscapes'], bestTime: 'All year', icon: '🌹' },
+            'tamil-nadu-chennai-vadapalani-hill-view': { name: 'Vadapalani Hill Temple (View Point)', coords: [13.0600, 80.2100], type: 'temple', location: 'Vadapalani, Chennai, Tamil Nadu', description: 'Offers a decent view of the surrounding areas from the hilltop.', highlights: ['Hilltop view', 'Surrounding areas'], bestTime: 'All year', icon: '🛕' },
+            'tamil-nadu-coimbatore-kovai-kondattam': { name: 'Kovai Kondattam', coords: [11.0000, 76.6000], type: 'monument', location: 'Coimbatore, Tamil Nadu', description: 'An eco-friendly amusement park with various water and dry rides.', highlights: ['Eco-friendly park', 'Water and dry rides'], bestTime: 'All year', icon: '🎡' },
+            'tamil-nadu-madurai-mariamman-temple': { name: 'Mariamman Teppakulam', coords: [9.9100, 78.1400], type: 'temple', location: 'Madurai, Tamil Nadu', description: 'The temple tank associated with the Mariamman Temple, used for the annual Float Festival.', highlights: ['Temple tank', 'Float Festival'], bestTime: 'January-February (festival)', icon: '🌊' },
+            'tamil-nadu-kanchipuram-silk-sarees': { name: 'Kanchipuram Silk Saree Weaving', coords: [12.8300, 79.7000], type: 'monument', location: 'Kanchipuram, Tamil Nadu', description: 'Witness the traditional handloom weaving of world-famous Kanchipuram silk sarees.', highlights: ['Traditional handloom', 'Silk sarees'], bestTime: 'All year', icon: '🛍️' },
+            'tamil-nadu-mahishadal-rajbari-museum': { name: 'Mahishadal Rajbari Museum', coords: [21.7820, 87.8930], type: 'monument', location: 'East Medinipur, West Bengal', description: 'Museum within the Mahishadal Rajbari, showcasing royal artifacts and history.', highlights: ['Royal artifacts', 'Historical museum'], bestTime: 'October to March', icon: '🏛️' },
+            'tamil-nadu-krishnagiri-sri-kama-akshith-durgai-amman-temple': { name: 'Sri Kama Akshith Durgai Amman Temple', coords: [12.5300, 78.2200], type: 'temple', location: 'Krishnagiri, Tamil Nadu', description: 'A local temple dedicated to Goddess Durga, popular among devotees.', highlights: ['Goddess Durga', 'Local temple'], bestTime: 'All year', icon: '🛕' },
+            'tamil-nadu-kovilpatti-kalugumalai-hill-park': { name: 'Kalugumalai Hill Park', coords: [9.1670, 77.8100], type: 'monument', location: 'Thoothukudi, Tamil Nadu', description: 'A small park offering views of the rock-cut monuments and the surrounding landscape.', highlights: ['Views of monuments', 'Hilltop park'], bestTime: 'October to March', icon: '🏞️' },
+            'tamil-nadu-dindigul-sirumalai-forest': { name: 'Sirumalai Reserve Forest', coords: [10.2300, 78.0800], type: 'wildlife', location: 'Dindigul, Tamil Nadu', description: 'Dense forest area within Sirumalai Hills, home to diverse flora and fauna.', highlights: ['Dense forest', 'Diverse flora and fauna'], bestTime: 'All year', icon: '🌲' },
+            'tamil-nadu-salem-sankagiri-fort': { name: 'Sankagiri Fort', coords: [11.6000, 77.9300], type: 'monument', location: 'Salem, Tamil Nadu', description: 'Historic hill fort with a significant role in South Indian history.', highlights: ['Historic hill fort', 'South Indian history'], bestTime: 'October to March', icon: '🏰' },
+            'tamil-nadu-tiruvannamalai-sathanur-dam': { name: 'Sathanur Dam', coords: [12.2000, 79.2000], type: 'waterfall', location: 'Tiruvannamalai, Tamil Nadu', description: 'Large dam and a popular picnic spot with a crocodile farm and a park.', highlights: ['Picnic spot', 'Crocodile farm'], bestTime: 'Monsoon', icon: '💧' },
+        };
+
+        // Custom icons for different place types
+        const iconStyles = {
+            temple: { color: '#e74c3c', icon: '🛕' },
+            waterfall: { color: '#3498db', icon: '💧' },
+            monument: { color: '#f39c12', icon: '🏛️' },
+            beach: { color: '#1abc9c', icon: '🏖️' },
+            'hill-station': { color: '#9b59b6', icon: '🏔️' },
+            wildlife: { color: '#27ae60', icon: '🦁' }
+        };
+
+        // Create custom markers for each place
+        const markers = {};
+        const markersLayer = L.layerGroup(); // Initialize without adding to map directly
+
+        // Add markers to map
+        function addMarkersToMap() {
+            markersLayer.clearLayers(); // Clear existing markers
+            Object.entries(touristPlaces).forEach(([key, place]) => {
+                const iconStyle = iconStyles[place.type];
+                
+                // Create custom HTML marker
+                const customIcon = L.divIcon({
+                    html: `<div style="
+                        background: linear-gradient(45deg, ${iconStyle.color}, ${iconStyle.color}dd);
+                        border: 3px solid white;
+                        border-radius: 50%;
+                        width: 30px;
+                        height: 30px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 16px;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                        animation: pulse 2s infinite;
+                    ">${place.icon}</div>`,
+                    className: 'custom-marker',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                const marker = L.marker(place.coords, { icon: customIcon });
+                marker.placeKey = key; // Store key for easy lookup
+
+                // Create popup content
+                const popupContent = `
+                    <div class="custom-popup">
+                        <h3>${place.name}</h3>
+                        <p><strong>📍 Location:</strong> ${place.location}</p>
+                        <p><strong>🏷️ Type:</strong> ${place.type.replace('-', ' ').toUpperCase()}</p>
+                        <p><strong>🌐 Coordinates:</strong> ${place.coords[0].toFixed(4)}, ${place.coords[1].toFixed(4)}</p>
+                        <button class="popup-btn" onclick="showPlaceDetails('${key}')">Learn More</button>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent, {
+                    maxWidth: 300,
+                    className: 'custom-popup-container'
+                });
+                
+                markers[key] = marker;
+                markersLayer.addLayer(marker);
+            });
+            markerCluster.addLayer(markersLayer); // Add all markers to the cluster group
+            map.addLayer(markerCluster); // Add the cluster group to the map
+        }
+
+        // Map control functions
+        function resetMap() {
+            map.setView([20.5937, 78.9629], 5);
+            closeSidebar();
+            document.getElementById('searchBox').value = '';
+            document.getElementById('autocompleteSuggestions').innerHTML = ''; // Clear suggestions
+            filterMarkers('all'); // Reset filters
+        }
+
+        function showPlaceDetails(placeKey) {
+            const place = touristPlaces[placeKey];
+            if (!place) return;
+
+            const placeInfo = document.getElementById('placeInfo');
+            const googleMapsLink = `https://www.google.com/maps/dir/?api=1&destination=${place.coords[0]},${place.coords[1]}`;
+
+            placeInfo.innerHTML = `
+                <h2>${place.name}</h2>
+                <div class="coordinates">
+                    <strong>🌐 Coordinates:</strong> ${place.coords[0].toFixed(6)}, ${place.coords[1].toFixed(6)}
+                </div>
+                <p><strong>📍 Location:</strong> ${place.location}</p>
+                <p><strong>🏷️ Type:</strong> ${place.type.replace('-', ' ').toUpperCase()}</p>
+                <p><strong>📅 Best Time to Visit:</strong> ${place.bestTime}</p>
+                
+                <h3>About ${place.name}</h3>
+                <p>${place.description}</p>
+                
+                <h3>Highlights & Attractions</h3>
+                <ul>
+                    ${place.highlights.map(highlight => `<li>${highlight}</li>`).join('')}
+                </ul>
+                <a href="${googleMapsLink}" target="_blank" class="directions-btn">Get Directions</a>
+            `;
+
+            // Show sidebar
+            document.getElementById('sidebar').classList.add('active');
+            
+            // Zoom to place with cinematic effect
+            map.flyTo(place.coords, 12, {
+                duration: 2,
+                easeLinearity: 0.25
+            });
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('active');
+        }
+
+        // Search functionality with Autocomplete
+        let currentFocus = -1;
+        const searchBox = document.getElementById('searchBox');
+        const autocompleteSuggestions = document.getElementById('autocompleteSuggestions');
+
+        searchBox.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            autocompleteSuggestions.innerHTML = '';
+            currentFocus = -1;
+
+            if (searchTerm.length < 2) {
+                return;
+            }
+            
+            const matchedPlaces = Object.values(touristPlaces).filter(place => {
+                return place.name.toLowerCase().includes(searchTerm) ||
+                       place.location.toLowerCase().includes(searchTerm);
+            });
+
+            // Add states to suggestions
+            const matchedStates = Object.keys(stateCoords).filter(stateName => 
+                stateName.includes(searchTerm)
+            ).map(stateName => ({ name: stateName.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '), location: 'State', type: 'state' }));
+
+            let combinedSuggestions = [...matchedStates, ...matchedPlaces];
+
+            combinedSuggestions.sort((a, b) => {
+                const aName = a.name.toLowerCase();
+                const bName = b.name.toLowerCase();
+                const aLocation = a.location.toLowerCase();
+                const bLocation = b.location.toLowerCase();
+
+                if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1;
+                if (!aName.startsWith(searchTerm) && bName.startsWith(searchTerm)) return 1;
+                if (aLocation.startsWith(searchTerm) && !bLocation.startsWith(searchTerm)) return -1;
+                if (!aLocation.startsWith(searchTerm) && bLocation.startsWith(searchTerm)) return 1;
+                return aName.localeCompare(bName);
+            });
+
+            combinedSuggestions.slice(0, 10).forEach(item => { // Limit to 10 suggestions
+                const div = document.createElement('div');
+                div.innerHTML = `<strong>${item.name.substr(0, searchTerm.length)}</strong>${item.name.substr(searchTerm.length)} ${item.location !== 'State' ? `(${item.location})` : '(State)'}`;
+                div.addEventListener('click', function() {
+                    searchBox.value = item.name;
+                    autocompleteSuggestions.innerHTML = '';
+                    performSearch(item.name, item.type === 'state');
+                });
+                autocompleteSuggestions.appendChild(div);
+            });
+        });
+
+        searchBox.addEventListener('keydown', function(e) {
+            let x = autocompleteSuggestions.getElementsByTagName('div');
+            if (e.keyCode == 40) { // Arrow Down
+                currentFocus++;
+                addActive(x);
+            } else if (e.keyCode == 38) { // Arrow Up
+                currentFocus--;
+                addActive(x);
+            } else if (e.keyCode == 13) { // Enter
+                e.preventDefault();
+                if (currentFocus > -1) {
+                    if (x[currentFocus]) x[currentFocus].click();
+                } else {
+                    performSearch(searchBox.value);
+                }
+            }
+        });
+
+        function addActive(x) {
+            if (!x) return false;
+            removeActive(x);
+            if (currentFocus >= x.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = (x.length - 1);
+            x[currentFocus].classList.add('active');
+            searchBox.value = x[currentFocus].innerText.split('(')[0].trim(); // Update searchbox with active suggestion
+        }
+
+        function removeActive(x) {
+            for (let i = 0; i < x.length; i++) {
+                x[i].classList.remove('active');
+            }
+        }
+
+        document.addEventListener('click', function (e) {
+            if (e.target != searchBox && e.target.parentNode != autocompleteSuggestions) {
+                autocompleteSuggestions.innerHTML = '';
+            }
+        });
+
+        function performSearch(searchTerm, isState = false) {
+            const normalizedSearchTerm = searchTerm.toLowerCase().trim();
+
+            if (isState || stateCoords[normalizedSearchTerm]) {
+                const stateData = stateCoords[normalizedSearchTerm];
+                if (stateData) {
+                    map.flyTo(stateData.coords, stateData.zoom, {
+                        duration: 1.5,
+                        easeLinearity: 0.25
+                    });
+                    closeSidebar(); // Close sidebar if a state is searched
+                } else {
+                    alert('State not found. Please try a different search term.');
+                }
+            } else {
+                const placeKey = Object.keys(touristPlaces).find(key => 
+                    touristPlaces[key].name.toLowerCase() === normalizedSearchTerm || 
+                    touristPlaces[key].location.toLowerCase().includes(normalizedSearchTerm) // Broader match for location
+                );
+
+                if (placeKey) {
+                    const marker = markers[placeKey];
+                    marker.openPopup();
+                    map.flyTo(touristPlaces[placeKey].coords, 10, {
+                        duration: 1.5,
+                        easeLinearity: 0.25
+                    });
+                    showPlaceDetails(placeKey);
+                } else {
+                    alert('Place not found. Please try a different search term.');
+                }
+            }
+        }
+
+
+        // Filter functionality
+        function filterMarkers(type) {
+            markerCluster.clearLayers(); // Clear all markers from the cluster group first
+            markersLayer.clearLayers(); // Also clear the markersLayer
+
+            Object.entries(touristPlaces).forEach(([key, place]) => {
+                if (type === 'all' || place.type === type) {
+                    markersLayer.addLayer(markers[key]); // Add only filtered markers to markersLayer
+                }
+            });
+            markerCluster.addLayer(markersLayer); // Add the filtered markersLayer to cluster group
+            
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.filter-controls button[data-filter="${type}"]`).classList.add('active');
+        }
+
+        // Geolocation
+        function locateUser() {
+            if (navigator.geolocation) {
+                map.locate({setView: true, maxZoom: 12});
+            } else {
+                alert('Geolocation is not supported by your browser.');
+            }
+        }
+
+        map.on('locationfound', function(e) {
+            const radius = e.accuracy / 2;
+            L.marker(e.latlng).addTo(map)
+                .bindPopup(`You are within ${radius.toFixed(0)} meters from this point`).openPopup();
+            L.circle(e.latlng, radius).addTo(map);
+        });
+
+        map.on('locationerror', function(e) {
+            alert(e.message);
+        });
+
+
+        // Event listeners
+        document.getElementById('resetBtn').addEventListener('click', resetMap);
+        document.getElementById('locateBtn').addEventListener('click', locateUser);
+
+        document.querySelectorAll('.filter-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                filterMarkers(this.dataset.filter);
+            });
+        });
+
+        // Add loading indicator
+        map.on('loading', function() {
+            document.getElementById('loading').style.display = 'block';
+        });
+
+        map.on('load', function() {
+            document.getElementById('loading').style.display = 'none';
+        });
+
+        // Add zoom animation to markers (dynamic sizing)
+        map.on('zoomend', function() {
+            const zoom = map.getZoom();
+            let scaleFactor;
+            if (zoom < 6) scaleFactor = 0.8;
+            else if (zoom < 8) scaleFactor = 1.0;
+            else if (zoom < 10) scaleFactor = 1.2;
+            else scaleFactor = 1.5;
+            
+            document.querySelectorAll('.custom-marker').forEach(marker => {
+                marker.style.transform = `scale(${scaleFactor})`;
+            });
+        });
+
+        // Add click event to show coordinates
+        map.on('click', function(e) {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            
+            L.popup()
+                .setLatLng(e.latlng)
+                .setContent(`<div style="text-align: center;">
+                    <strong>Coordinates</strong><br>
+                    <span style="font-family: monospace;">
+                        ${lat}, ${lng}
+                    </span>
+                </div>`)
+                .openOn(map);
+        });
+
+        // Add marker clustering for better performance
+        const markerCluster = L.markerClusterGroup({
+            chunkedLoading: true,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            maxClusterRadius: 50
+        });
+
+        // Initial setup
+        addMarkersToMap(); // Call to populate map with markers
+        filterMarkers('all'); // Initialize with all markers visible
+
+        console.log('India Tourism Map loaded successfully!');
+        console.log(`Total places: ${Object.keys(touristPlaces).length}`);
+    </script>
+</body>
+</html>
